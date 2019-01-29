@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 # Distribute: python setup.py sdist upload
 
 setup(
-    name='pydora',
+    name='autodora',
     version='0.0.1',
     description='Automate experiments and explore your data',
     url='http://github.com/samuelkolb/pydora',
