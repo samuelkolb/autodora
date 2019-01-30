@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='autodora',
-    version='0.1.0',
+    version='0.1.1',
     description='Automate experiments and explore your data',
     url='http://github.com/samuelkolb/pydora',
     author='Samuel Kolb',

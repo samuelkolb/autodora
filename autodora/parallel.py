@@ -1,7 +1,7 @@
 import os
 import signal
 import subprocess
-from multiprocessing import Queue, Process
+from multiprocessing import Queue, Process, Manager
 from multiprocessing.pool import Pool
 from subprocess import TimeoutExpired
 from typing import Optional, Union, Any
@@ -63,7 +63,11 @@ def run_command(args):
 
 def run_commands(commands, processes=None, timeout=None, meta=None, observer=None):
     pool = Pool(processes=processes)
-    queue = Queue() if observer else None
+    manager, queue = None, None
+    if observer:
+        manager = Manager()
+        queue = manager.Queue()
+
     if meta:
         commands = [(i, meta, command, timeout, queue) for i, (command, meta) in enumerate(zip(commands, meta))]
     else:
