@@ -1,7 +1,7 @@
 import os
 from functools import partial
 
-from peewee import Model, SqliteDatabase, CharField, BooleanField
+from peewee import Model, SqliteDatabase, CharField, BooleanField, IntegerField
 from playhouse.fields import PickleField
 
 from .storage import Storage
@@ -18,12 +18,15 @@ class BaseModel(Model):
 
 class ExperimentModel(BaseModel):
     cls_name = CharField()
-    completed = BooleanField()
     group = CharField()
     config = PickleField()
     parameters = PickleField()
     result = PickleField()
     derived = PickleField()
+
+
+class Run(BaseModel):
+    number = IntegerField()
 
 
 def class_name(cls):
@@ -33,13 +36,12 @@ def class_name(cls):
 class SqliteStorage(Storage):
     def __init__(self):
         database.connect()
-        database.create_tables([ExperimentModel], safe=True)
+        database.create_tables([ExperimentModel, Run], safe=True)
         database.close()
 
     def save(self, experiment):
         if experiment.storage == self and experiment.identifier:
             model = ExperimentModel.get_by_id(experiment.identifier)
-            model.completed = experiment.completed
             model.group = experiment.group
             model.config = experiment.config.values
             model.parameters = experiment.parameters.values
@@ -51,7 +53,7 @@ class SqliteStorage(Storage):
             cls = class_name(experiment.__class__)
             model = ExperimentModel.create(cls_name=cls, group=experiment.group, config=experiment.config.values,
                                            parameters=experiment.parameters.values, result=experiment.result.values,
-                                           derived=experiment.derived, completed=experiment.completed)
+                                           derived=experiment.derived)
             experiment.storage = self
             experiment.identifier = model.id
         else:
@@ -62,7 +64,6 @@ class SqliteStorage(Storage):
 
     def transform(self, cls, model):
         experiment = cls(model.group, self, identifier=model.id)
-        experiment.completed = model.completed
         for key, value in model.config.items():
             experiment.config[key] = value
         for key, value in model.parameters.items():
@@ -93,6 +94,13 @@ class SqliteStorage(Storage):
 
     def remove(self, group):
         ExperimentModel.delete().where(ExperimentModel.group == group).execute()
+
+    @database.atomic('EXCLUSIVE')
+    def get_new_run(self):
+        counts = [m.number for m in Run.select()]
+        max_run = max(counts) + 1 if len(counts) > 0 else 1
+        Run.create(number=max_run)
+        return max_run
 
     def get_groups(self):
         return sorted(set(m.group for m in ExperimentModel.select()))

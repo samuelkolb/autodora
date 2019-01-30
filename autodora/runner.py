@@ -1,4 +1,6 @@
 import inspect
+import platform
+from datetime import datetime
 from typing import TYPE_CHECKING, Type
 
 from pebble import ProcessPool
@@ -51,13 +53,16 @@ class CommandLineRunner(object):
         self.timeout = timeout
         self.processes = processes
         self.observer = None if observer is None else ParallelToProcess(observer, self)
+        self.run_count = self.storage.get_new_run()
 
     def run(self):
         commands = []
         for experiment in self.trajectory.experiments:
             if self.timeout:
-                experiment.config["timeout"] = self.timeout
-            experiment.config["started"] = True
+                experiment.config["@timeout"] = self.timeout
+            experiment.config["@run.count"] = self.run_count
+            experiment.config["@run.date"] = datetime.now()
+            experiment.config["@run.computer"] = platform.node()
             experiment.save(self.storage)
             storage_name = export_storage(experiment.storage)
             filename = inspect.getfile(experiment.__class__)
@@ -77,7 +82,7 @@ class ParallelRunner(object):
     def run(self):
         for e in self.trajectory.experiments:
             if self.timeout:
-                e.config["timeout"] = self.timeout
+                e.config["@timeout"] = self.timeout
             e.save(self.storage)
         args_list = [(self.storage, e.__class__, e.identifier) for e in self.trajectory.experiments]
         results = []

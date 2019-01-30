@@ -24,6 +24,11 @@ class Storage(object):
         # type: () -> List[str]
         raise NotImplementedError()
 
+    def get_new_run(self):
+        # type: () -> int
+        raise NotImplementedError()
+
+
 
 def export_storage(storage):
     from .sql_storage import SqliteStorage

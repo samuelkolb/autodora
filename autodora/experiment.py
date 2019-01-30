@@ -1,4 +1,6 @@
+import sys
 import time
+from datetime import datetime
 from typing import Union, Any, Dict, List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -88,15 +90,18 @@ class Group(object):
 
 
 class Derived(object):
-    def __init__(self, callback):
+    def __init__(self, callback, cache):
         self.callback = callback
+        self.cache = cache
 
     def __call__(self, *args, **kwargs):
         return self.callback(*args, **kwargs)
 
 
-def derived(func):
-    return Derived(func)
+def derived(cache):
+    def real(func):
+        return Derived(func, cache)
+    return real
 
 
 class Experiment(object):
@@ -105,15 +110,28 @@ class Experiment(object):
         self.derived_callbacks = dict()
         self.storage = storage
         self.identifier = identifier
-        self.completed = False
 
         self.group = group
+
         self.config = Group("config")
-        self.config.add_parameter("timeout", int, None, description="The timeout value set for this experiment")
-        self.config.add_parameter("started", bool, False, description="Whether this experiment has been started")
+        self.config.add_parameter("@timeout", int, None, "The timeout value set for this experiment")
+        self.config.add_parameter("@run.count", int, None, "The run count (for local storage)")
+        self.config.add_parameter("@run.computer", str, None, "The computer name the run was performed on")
+        self.config.add_parameter("@run.date", datetime, None, "The date when the run was instantiated")
+
         self.parameters = Group("parameters")
+
         self.result = Group("result")
-        self.result.add_parameter("runtime", float, None, description="How long the experiment took to execute")
+        self.result.add_parameter("@start_time", datetime, None, "When this experiment was started")
+        self.result.add_parameter("@end_time", datetime, None, "When this experiment was started")
+        self.result.add_parameter("@runtime", float, None, "How long the experiment took to execute (perf time)")
+        self.result.add_parameter("@runtime_wall", float, None,
+                                  "How long the experiment took to execute (wall clock time)")
+        self.result.add_parameter("@runtime_process", float, None,
+                                  "How long the experiment took to execute (process time)")
+
+        self.derived_callbacks["@completed"] = Derived(self.is_completed, False)
+
         self.derived = dict()
 
         for key, value in self.__class__.__dict__.items():
@@ -131,13 +149,21 @@ class Experiment(object):
                     key = key[8:]
                 self.derived_callbacks[key] = value
 
+    def is_completed(self):
+        return self["@end_time"] is not None
+
     def get_derived(self, name):
         if name in self.derived:
             return self.derived[name]
 
         if name in self.derived_callbacks:
-            result = self.derived_callbacks[name](self)
-            self.derived[name] = result
+            try:
+                result = self.derived_callbacks[name](self)
+            except TypeError:
+                result = self.derived_callbacks[name]()
+
+            if self.derived_callbacks[name].cache:
+                self.derived[name] = result
             return result
 
         raise ValueError("There is no derived attribute with the name {name}".format(name=name))
@@ -211,11 +237,20 @@ class Experiment(object):
 
     def run(self, auto_save=True):
         try:
+            self.result["@start_time"] = datetime.now()
+            if auto_save:
+                self.save()
             start = time.perf_counter()
+            start_process = time.process_time()
+            start_wall = time.time()
             self.run_internal()
             runtime = time.perf_counter() - start
-            self.result["runtime"] = runtime
-            self.completed = True
+            runtime_process = time.process_time() - start_process
+            runtime_wall = time.time() - start_wall
+            self.result["@end_time"] = datetime.now()
+            self.result["@runtime"] = runtime
+            self.result["@runtime_process"] = runtime_process
+            self.result["@runtime_wall"] = runtime_wall
             if auto_save and self.storage:
                 self.save()
             return self

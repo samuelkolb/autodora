@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='autodora',
-    version='0.1.12',
+    version='0.2.0',
     description='Automate experiments and explore your data',
     url='http://github.com/samuelkolb/pydora',
     author='Samuel Kolb',
@@ -12,5 +12,7 @@ setup(
     license='MIT',
     packages=find_packages(),
     zip_safe=False,
-    install_requires=['matplotlib', 'peewee', 'pebble', 'numpy']
+    install_requires=['matplotlib', 'peewee', 'pebble', 'numpy'],
+    setup_requires=['pytest-runner'],
+    tests_require=['pytest'],
 )

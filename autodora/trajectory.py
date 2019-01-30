@@ -35,7 +35,10 @@ class Trajectory(object):
                     common_length = len(val)
                 elif len(val) != common_length:
                     raise ValueError("All value assignments must have the same length")
-            settings = [{k: v[i] for k, v in settings.items()} for i in range(common_length)]
+            if common_length is None:
+                settings = [{}]
+            else:
+                settings = [{k: v[i] for k, v in settings.items()} for i in range(common_length)]
 
         for setting in settings:
             experiment = cls(self.name)
