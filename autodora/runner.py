@@ -1,5 +1,5 @@
 import inspect
-from abc import ABC
+from typing import TYPE_CHECKING, Type
 
 from pebble import ProcessPool
 
@@ -11,19 +11,26 @@ from concurrent.futures import TimeoutError as OtherTimeoutError
 
 
 class ParallelToProcess(ParallelObserver):
-    def __init__(self, observer):
-        # type: (ProgressObserver) -> None
+    def __init__(self, observer, runner):
+        # type: (ProgressObserver, CommandLineRunner) -> None
         super().__init__()
         self.observer = observer
+        self.runner = runner
 
     def observe(self, update):
+        if self.observer.auto_load:
+            meta = self.runner.trajectory.experiments[update.index]
+            if update.status == Update.DONE:
+                meta = meta.fresh_copy()
+        else:
+            meta = update.meta
+
         if update.status == Update.STARTED:
-            self.observer.experiment_started(update.index, update.meta)
+            self.observer.experiment_started(update.index, meta)
         if update.status == Update.DONE:
-            experiment = update.meta.fresh_copy()
-            self.observer.experiment_finished(update.index, experiment)
+            self.observer.experiment_finished(update.index, meta)
         if update.status == Update.TIMEOUT:
-            self.observer.experiment_interrupted(update.index, update.meta)
+            self.observer.experiment_interrupted(update.index, meta)
 
 
 class PrintObserver(ProgressObserver):
@@ -43,7 +50,7 @@ class CommandLineRunner(object):
         self.storage = storage
         self.timeout = timeout
         self.processes = processes
-        self.observer = None if observer is None else ParallelToProcess(observer)
+        self.observer = None if observer is None else ParallelToProcess(observer, self)
 
     def run(self):
         commands = []
@@ -55,7 +62,7 @@ class CommandLineRunner(object):
             storage_name = export_storage(experiment.storage)
             filename = inspect.getfile(experiment.__class__)
             commands.append("python {} {} run {}".format(filename, storage_name, experiment.identifier))
-        meta = self.trajectory.experiments if self.observer else None
+        meta = [e.identifier for e in self.trajectory.experiments] if self.observer else None
         parallel.run_commands(commands, timeout=self.timeout, observer=self.observer, meta=meta)
         return [self.storage.get_experiment(e.__class__, e.identifier) for e in self.trajectory.experiments]
 

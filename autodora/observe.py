@@ -22,6 +22,10 @@ def dispatch(func):
 
 
 class ProgressObserver(Observer):
+    def __init__(self, auto_load=True):
+        super().__init__()
+        self.auto_load = auto_load
+
     @dispatch
     def experiment_started(self, index, experiment):
         # type: (int, Experiment) -> None
