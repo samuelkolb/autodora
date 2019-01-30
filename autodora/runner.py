@@ -20,7 +20,8 @@ class ParallelToProcess(ParallelObserver):
         if update.status == Update.STARTED:
             self.observer.experiment_started(update.index, update.meta)
         if update.status == Update.DONE:
-            self.observer.experiment_finished(update.index, update.meta)
+            experiment = update.meta.fresh_copy()
+            self.observer.experiment_finished(update.index, experiment)
         if update.status == Update.TIMEOUT:
             self.observer.experiment_interrupted(update.index, update.meta)
 
@@ -54,7 +55,8 @@ class CommandLineRunner(object):
             storage_name = export_storage(experiment.storage)
             filename = inspect.getfile(experiment.__class__)
             commands.append("python {} {} run {}".format(filename, storage_name, experiment.identifier))
-        parallel.run_commands(commands, timeout=self.timeout, observer=self.observer)
+        meta = self.trajectory.experiments if self.observer else None
+        parallel.run_commands(commands, timeout=self.timeout, observer=self.observer, meta=meta)
         return [self.storage.get_experiment(e.__class__, e.identifier) for e in self.trajectory.experiments]
 
 

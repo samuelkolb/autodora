@@ -1,3 +1,8 @@
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from .experiment import Experiment
+
+
 class Observer:
     def __init__(self):
         self.observers = []
@@ -19,14 +24,17 @@ def dispatch(func):
 class ProgressObserver(Observer):
     @dispatch
     def experiment_started(self, index, experiment):
+        # type: (int, Experiment) -> None
         raise NotImplementedError()
 
     @dispatch
     def experiment_finished(self, index, experiment):
+        # type: (int, Experiment) -> None
         raise NotImplementedError()
 
     @dispatch
     def experiment_interrupted(self, index, experiment):
+        # type: (int, Experiment) -> None
         raise NotImplementedError()
 
 
