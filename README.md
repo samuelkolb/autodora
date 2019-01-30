@@ -1,4 +1,4 @@
-# autodora
+# autodora [![Build Status](https://travis-ci.org/samuelkolb/autodora.svg?branch=master)](https://travis-ci.org/samuelkolb/autodora)
 autodora is a framework to help you:
 1. setup experiments
 2. running them for multiple parameters
