@@ -5,7 +5,6 @@ from typing import List, Optional, Union, Any
 import numpy as np
 
 from .experiment import Experiment
-from .plot import ScatterData
 
 
 def table(data, column_header=None, row_header=None):
@@ -235,6 +234,7 @@ def show(
     key_names = [["{}:{}".format(g, v) for g, v in zip(group_by, values)] for values in keys]
 
     if plot:
+        from .plot import ScatterData
         scatter = ScatterData("", options)
         for n, k in zip(key_names, keys):
             name = ", ".join(map(str, n))
