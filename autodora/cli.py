@@ -33,6 +33,9 @@ def parse_cli(cls):
     list_parser = sub_parser.add_parser("list")
     list_parser.add_argument("name")
 
+    list_parser = sub_parser.add_parser("remove")
+    list_parser.add_argument("name")
+
     groups_parser = sub_parser.add_parser("groups")
 
     # python product_experiment.py sqlite analyze
@@ -72,6 +75,8 @@ def parse_cli(cls):
             engine = import_runner(args.e, trajectory, storage, args.t)
             engine.run()
     elif args.mode == "list":
-        print(*storage.get_experiments(cls, args.name), sep="\n")
+            print(*storage.get_experiments(cls, args.name), sep="\n")
+    elif args.mode == "remove":
+            storage.remove(args.name)
     elif args.mode == "groups":
         print(storage.get_groups())
