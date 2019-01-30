@@ -42,7 +42,7 @@ class CommandLineRunner(object):
         self.storage = storage
         self.timeout = timeout
         self.processes = processes
-        self.observer = observer
+        self.observer = None if observer is None else ParallelToProcess(observer)
 
     def run(self):
         commands = []
