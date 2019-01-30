@@ -7,7 +7,7 @@ def flatten(dict_settings):
         if not common_length:
             common_length = len(val)
         elif len(val) != common_length:
-            raise ValueError(f"All value assignments must have the same length")
+            raise ValueError("All value assignments must have the same length")
     return [{k: v[i] for k, v in dict_settings.items()} for i in range(common_length)]
 
 
@@ -34,7 +34,7 @@ class Trajectory(object):
                 if not common_length:
                     common_length = len(val)
                 elif len(val) != common_length:
-                    raise ValueError(f"All value assignments must have the same length")
+                    raise ValueError("All value assignments must have the same length")
             settings = [{k: v[i] for k, v in settings.items()} for i in range(common_length)]
 
         for setting in settings:

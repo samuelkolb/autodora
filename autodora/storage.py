@@ -26,7 +26,7 @@ def export_storage(storage):
     if isinstance(storage, SqliteStorage):
         return "sqlite"
     else:
-        raise ValueError(f"Could not export storage {storage}")
+        raise ValueError("Could not export storage {storage}".format(storage=storage))
 
 
 def import_storage(storage_string):
@@ -34,7 +34,7 @@ def import_storage(storage_string):
         from .sql_storage import SqliteStorage
         return SqliteStorage()
     else:
-        raise ValueError(f"Could not import storage {storage_string}")
+        raise ValueError("Could not import storage {storage_string}".format(storage_string=storage_string))
 
 
 def full_class_name(cls):

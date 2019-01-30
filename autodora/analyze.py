@@ -122,10 +122,10 @@ def get_property(index: int, experiment: Experiment, property_name: str):
         return getattr(get_property(index, experiment, ".".join(parts[:-1])), parts[-1])
 
     properties = ["id", "*"] \
-        + sorted(map(lambda s: f"config.{s}", experiment.config.parameters.keys())) \
-        + sorted(map(lambda s: f"parameter.{s}", experiment.parameters.parameters.keys())) \
-        + sorted(map(lambda s: f"result.{s}", experiment.result.parameters.keys())) \
-        + sorted(map(lambda s: f"derived.{s}", experiment.derived_callbacks.keys()))
+        + sorted(map(lambda s: "config.{s}".format(s=s), experiment.config.parameters.keys())) \
+        + sorted(map(lambda s: "parameter.{s}".format(s=s), experiment.parameters.parameters.keys())) \
+        + sorted(map(lambda s: "result.{s}".format(s=s), experiment.result.parameters.keys())) \
+        + sorted(map(lambda s: "derived.{s}".format(s=s), experiment.derived_callbacks.keys()))
 
     raise ValueError("Could not find property: {}, choose a valid property ({}) or a filter"
                      .format(property_name, properties))

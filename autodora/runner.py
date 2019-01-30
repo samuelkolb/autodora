@@ -23,7 +23,7 @@ class CommandLineRunner(object):
             experiment.save(self.storage)
             storage_name = export_storage(experiment.storage)
             filename = inspect.getfile(experiment.__class__)
-            commands.append(f"python {filename} {storage_name} run {experiment.identifier}")
+            commands.append("python {} {} run {}".format(filename, storage_name, experiment.identifier))
         parallel.run_commands(commands, timeout=self.timeout)
         return [self.storage.get_experiment(e.__class__, e.identifier) for e in self.trajectory.experiments]
 
@@ -48,15 +48,15 @@ class ParallelRunner(object):
             iterator = future.result()
 
             while True:
+                exp_id = None
                 try:
                     exp_id = next(iterator)
                     results.append(exp_id)
-                    print(f"[done]    {exp_id}")
-
+                    print("[done]    {exp_id}".format(exp_id=exp_id))
                 except StopIteration:
                     break
-                except (TimeoutError, OtherTimeoutError) as error:
-                    print(f"[timeout] {exp_id} (timeout={self.timeout})")
+                except (TimeoutError, OtherTimeoutError):
+                    print("[timeout] {exp_id} (timeout={timeout})".format(exp_id=exp_id or "-", timeout=self.timeout))
 
         return [self.storage.get_experiment(oe.__class__, exp_id)
                 for exp_id, oe in zip(results, self.trajectory.experiments)]
@@ -75,4 +75,4 @@ def import_runner(runner_string, trajectory, storage, timeout=None):
     elif runner_string == "multi":
         return ParallelRunner(trajectory, storage, timeout=timeout)
     else:
-        raise ValueError(f"Could not parse runner from {runner_string}")
+        raise ValueError("Could not parse runner from {}".format(runner_string))

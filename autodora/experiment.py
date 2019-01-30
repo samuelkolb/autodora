@@ -1,9 +1,7 @@
 import time
-from argparse import ArgumentParser
 from typing import Union, Any, Dict, List
 
 from .trajectory import Trajectory
-from .storage import import_storage
 
 
 class Parameter(object):
@@ -45,9 +43,9 @@ class Group(object):
 
     def set_value(self, name, value):
         if name not in self.parameters:
-            raise ValueError(f"No parameter called {name}")
+            raise ValueError("No parameter called {name}".format(name=name))
         if not isinstance(value, self.parameters[name].p_type):
-            raise ValueError(f"Unexpected type for value {value}")
+            raise ValueError("Unexpected type for value {value}".format(value=value))
         self.values[name] = value
 
     def __setitem__(self, key, value):
@@ -59,7 +57,7 @@ class Group(object):
     def add_arguments(self, parser, prefix=None):
         for name, parameter in self.parameters.items():
             parser.add_argument(
-                f"--{prefix or ''}{parameter.arg_name}",
+                "--{}{}".format(prefix or '', parameter.arg_name),
                 type=parameter.p_type,
                 default=parameter.default,
                 help=parameter.description
@@ -67,11 +65,11 @@ class Group(object):
 
     def parse_arguments(self, args, prefix=None):
         for name, parameter in self.parameters.items():
-            self.set_value(name, getattr(args, f"{prefix or ''}{parameter.arg_name}"))
+            self.set_value(name, getattr(args, "{}{}".format(prefix or '', parameter.arg_name)))
 
     def get_arguments(self, prefix=None):
         return " ".join(
-            "--{} {}".format(f"{prefix or ''}{self.parameters[name].arg_name}", value)
+            "--{} {}".format("{}{}".format(prefix or '', self.parameters[name].arg_name), value)
             for name, value in self.values.items() if value is not None
         )
 
@@ -82,8 +80,8 @@ class Group(object):
         return group
 
     def __str__(self):
-        values = ", ".join(f"{key}: {self.values.get(key, '')}" for key in self.parameters)
-        return f"{self.name}={{{values}}}"
+        values = ", ".join("{}: {}".format(key, self.values.get(key, '')) for key in self.parameters)
+        return "{}={{{}}}".format(self.name, values)
 
 
 class Derived(object):
@@ -138,7 +136,7 @@ class Experiment(object):
             self.derived[name] = result
             return result
 
-        raise ValueError(f"There is no derived attribute with the name {name}")
+        raise ValueError("There is no derived attribute with the name {name}".format(name=name))
 
     def __getitem__(self, item):
         return self.get(item)
@@ -175,9 +173,9 @@ class Experiment(object):
             if len(results) == 1:
                 return results[0]
             elif len(results) > 1:
-                raise ValueError(f"Multiple entries found for the name {name}, please use parameter.{name}, "
-                                 f"result.{name}, config.{name} or derived.{name} to disambiguate")
-        raise ValueError(f"No entry found for the name {name}")
+                raise ValueError("Multiple entries found for the name {name}, please use parameter.{name}, "
+                                 "result.{name}, config.{name} or derived.{name} to disambiguate".format(name=name))
+        raise ValueError("No entry found for the name {name}".format(name=name))
 
     def set(self, name, value):
         if isinstance(name, Parameter):
@@ -205,10 +203,10 @@ class Experiment(object):
             if len(results) == 1:
                 results[0][name] = value
             elif len(results) > 1:
-                raise ValueError(f"Multiple entries found for the name {name}, please use parameter.{name}, "
-                                 f"result.{name}, config.{name} or derived.{name} to disambiguate")
+                raise ValueError("Multiple entries found for the name {name}, please use parameter.{name}, "
+                                 "result.{name}, config.{name} or derived.{name} to disambiguate".format(name=name))
             else:
-                raise ValueError(f"No entry found for the name {name}")
+                raise ValueError("No entry found for the name {name}".format(name=name))
 
     def run(self, auto_save=True):
         try:
@@ -231,28 +229,28 @@ class Experiment(object):
             storage.save(self)
         else:
             if not self.storage:
-                raise ValueError(f"No storage specified")
+                raise ValueError("No storage specified")
             self.storage.save(self)
 
     def __str__(self):
-        return f"EXP(group={self.group or ''}, id={self.identifier or ''}, {self.config}, {self.parameters}," \
-               f"{self.result}, derived={self.derived})"
+        return "EXP(group={}, id={}, {}, {}, {}, derived={})"\
+            .format(self.group or '', self.identifier or '', self.config, self.parameters, self.result, self.derived)
 
     def add_arguments(self, parser, prefix=None):
-        self.config.add_arguments(parser, f"{prefix or ''}conf.")
-        self.parameters.add_arguments(parser, f"{prefix or ''}par.")
-        self.result.add_arguments(parser, f"{prefix or ''}res.")
+        self.config.add_arguments(parser, "{}conf.".format(prefix or ''))
+        self.parameters.add_arguments(parser, "{}par.".format(prefix or ''))
+        self.result.add_arguments(parser, "{}res.".format(prefix or ''))
 
     def parse_arguments(self, args, prefix=None):
-        self.config.parse_arguments(args, f"{prefix or ''}conf.")
-        self.parameters.parse_arguments(args, f"{prefix or ''}par.")
-        self.result.parse_arguments(args, f"{prefix or ''}res.")
+        self.config.parse_arguments(args, "{}conf.".format(prefix or ''))
+        self.parameters.parse_arguments(args, "{}par.".format(prefix or ''))
+        self.result.parse_arguments(args, "{}res.".format(prefix or ''))
 
     def get_arguments(self, prefix=None):
         strings = [
-            self.config.get_arguments(f"{prefix or ''}conf."),
-            self.parameters.get_arguments(f"{prefix or ''}par."),
-            self.result.get_arguments(f"{prefix or ''}res."),
+            self.config.get_arguments("{}conf.".format(prefix or '')),
+            self.parameters.get_arguments("{}par.".format(prefix or '')),
+            self.result.get_arguments("{}res.".format(prefix or '')),
         ]
         return " ".join(strings)
 
@@ -271,4 +269,3 @@ class Experiment(object):
     def run_cli(cls):
         from .cli import parse_cli
         parse_cli(cls)
-

@@ -56,9 +56,9 @@ class SqliteStorage(Storage):
             experiment.identifier = model.id
         else:
             if experiment != self:
-                raise ValueError(f"Experiment comes from a different storage")
+                raise ValueError("Experiment comes from a different storage")
             else:
-                raise ValueError(f"Experiment is partially instantiated")
+                raise ValueError("Experiment is partially instantiated")
 
     def transform(self, cls, model):
         experiment = cls(model.group, self, identifier=model.id)
@@ -78,7 +78,8 @@ class SqliteStorage(Storage):
         if class_name(cls) == model.cls_name:
             return self.transform(cls, model)
         else:
-            raise ValueError(f"Could not find experiment with id {identifier} and class {cls} (was {model.cls_name})")
+            raise ValueError("Could not find experiment with id {} and class {} (was {})"
+                             .format(identifier, cls, model.cls_name))
 
     def get_experiments(self, cls, group=None):
         cls_name = class_name(cls)

@@ -25,8 +25,8 @@ def parse_cli(cls):
     explore_parser.add_argument("name", type=str, help="The name for this experiment")
     experiment = cls("")
     for parameter in experiment.parameters.parameters.values():
-        explore_parser.add_argument(f"--{parameter.arg_name}", type=parameter.p_type, nargs="+",
-                                    help=parameter.description, dest=f"parameter.{parameter.arg_name}")
+        explore_parser.add_argument("--{}".format(parameter.arg_name), type=parameter.p_type, nargs="+",
+                                    help=parameter.description, dest="parameter.{}".format(parameter.arg_name))
     explore_parser.add_argument("-e", type=str, default=None, help="Execute the trajectory with the specified engine")
     explore_parser.add_argument("-t", type=int, default=None, help="Timeout for the execution")
 
@@ -56,7 +56,7 @@ def parse_cli(cls):
         from .trajectory import product, Trajectory
         settings = None
         for parameter in experiment.parameters.parameters.values():
-            values = getattr(args, f"parameter.{parameter.arg_name}")
+            values = getattr(args, "parameter.{}".format(parameter.arg_name))
             if values:
                 local_settings = {parameter.name: values}
                 if settings is None:
