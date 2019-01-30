@@ -93,3 +93,6 @@ class SqliteStorage(Storage):
 
     def remove(self, group):
         ExperimentModel.delete().where(ExperimentModel.group == group).execute()
+
+    def get_groups(self):
+        return list(ExperimentModel.select(ExperimentModel.group))

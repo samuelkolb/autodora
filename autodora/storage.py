@@ -20,6 +20,10 @@ class Storage(object):
     def remove(self, group):
         raise NotImplementedError()
 
+    def get_groups(self):
+        # type: () -> List[str]
+        raise NotImplementedError()
+
 
 def export_storage(storage):
     from .sql_storage import SqliteStorage
