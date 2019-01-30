@@ -1,3 +1,4 @@
+import errno
 import os
 import signal
 import subprocess
@@ -57,7 +58,16 @@ def run_command(args):
         except TimeoutExpired:
             if queue:
                 queue.put(Update(Update.TIMEOUT, i, command, meta))
-            os.killpg(process.pid, signal.SIGINT)  # send signal to the process group
+
+            try:
+                os.killpg(process.pid, signal.SIGINT)  # send signal to the process group
+            except OSError as e:
+                if e.errno != errno.ESRCH:
+                    if e.errno == errno.EPERM:
+                        os.waitpid(-process.pid, 0)
+                else:
+                    raise e
+
             process.communicate()
 
 
