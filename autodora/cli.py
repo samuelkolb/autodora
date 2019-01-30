@@ -71,7 +71,7 @@ def parse_cli(cls):
         if args.e:
             engine = import_runner(args.e, trajectory, storage, args.t)
             engine.run()
-        elif args.mode == "list":
-            print(*storage.get_experiments(cls, args.name), sep="\n")
-        elif args.mode == "groups":
-            print(storage.get_groups())
+    elif args.mode == "list":
+        print(*storage.get_experiments(cls, args.name), sep="\n")
+    elif args.mode == "groups":
+        print(storage.get_groups())
