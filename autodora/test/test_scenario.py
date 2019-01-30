@@ -25,7 +25,7 @@ def test_product_scenario():
 
     name = "name"
     input_options = {"input": ["10x20", "10x30", "10x40"]}
-    count_options = {"count": [5, 10, 1000000]}
+    count_options = {"count": [5, 10, 10000000]}
     timeout = 2
 
     t = ProductExperiment.explore(name, product(input_options, count_options))
