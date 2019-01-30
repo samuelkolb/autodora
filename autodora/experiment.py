@@ -1,5 +1,8 @@
 import time
-from typing import Union, Any, Dict, List
+from typing import Union, Any, Dict, List, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from storage import Storage
 
 from .trajectory import Trajectory
 
@@ -98,6 +101,7 @@ def derived(func):
 
 class Experiment(object):
     def __init__(self, group, storage=None, identifier=None):
+        # type: (str, Optional[Storage], Optional[int]) -> None
         self.derived_callbacks = dict()
         self.storage = storage
         self.identifier = identifier
@@ -231,6 +235,9 @@ class Experiment(object):
             if not self.storage:
                 raise ValueError("No storage specified")
             self.storage.save(self)
+
+    def fresh_copy(self):
+        return self.storage.get_experiment(self.__class__, self.identifier)
 
     def __str__(self):
         return "EXP(group={}, id={}, {}, {}, {}, derived={})"\

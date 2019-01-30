@@ -1,18 +1,48 @@
 import inspect
+from abc import ABC
 
 from pebble import ProcessPool
 
+from .observe import ProgressObserver
+from .parallel import ParallelObserver, Update
 from . import parallel
 from .storage import export_storage
 from concurrent.futures import TimeoutError as OtherTimeoutError
 
 
+class ParallelToProcess(ParallelObserver):
+    def __init__(self, observer):
+        # type: (ProgressObserver) -> None
+        super().__init__()
+        self.observer = observer
+
+    def observe(self, update):
+        if update.status == Update.STARTED:
+            self.observer.experiment_started(update.index, update.meta)
+        if update.status == Update.DONE:
+            self.observer.experiment_finished(update.index, update.meta)
+        if update.status == Update.TIMEOUT:
+            self.observer.experiment_interrupted(update.index, update.meta)
+
+
+class PrintObserver(ProgressObserver):
+    def experiment_started(self, index, experiment):
+        print("[{}] started: {}".format(index, experiment))
+
+    def experiment_finished(self, index, experiment):
+        print("[{}] done: {}".format(index, experiment))
+
+    def experiment_interrupted(self, index, experiment):
+        print("[{}] timed out: {}".format(index, experiment))
+
+
 class CommandLineRunner(object):
-    def __init__(self, trajectory, storage, processes=None, timeout=None):
+    def __init__(self, trajectory, storage, processes=None, timeout=None, observer=None):
         self.trajectory = trajectory
         self.storage = storage
         self.timeout = timeout
         self.processes = processes
+        self.observer = observer
 
     def run(self):
         commands = []
@@ -24,7 +54,7 @@ class CommandLineRunner(object):
             storage_name = export_storage(experiment.storage)
             filename = inspect.getfile(experiment.__class__)
             commands.append("python {} {} run {}".format(filename, storage_name, experiment.identifier))
-        parallel.run_commands(commands, timeout=self.timeout)
+        parallel.run_commands(commands, timeout=self.timeout, observer=self.observer)
         return [self.storage.get_experiment(e.__class__, e.identifier) for e in self.trajectory.experiments]
 
 
