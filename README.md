@@ -10,3 +10,12 @@ The aim of this package is to make these steps as easy and integrated as possibl
 ## Installation
 
     pip install autodora
+    
+Experiments can be tracked using observers. Specialized observers may require optional packages to function that are
+not included by default (because you might not need them).
+
+### Telegram observer
+
+    pip install autodora[telegram]
+    
+In order to use the observer you have to set the environment variables `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`.
