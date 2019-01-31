@@ -28,8 +28,8 @@ class ProgressObserver(Observer):
         self.auto_load = auto_load
 
     @dispatch
-    def run_started(self, platform, name, run_count, run_date):
-        # type: (str, str, int, datetime) -> None
+    def run_started(self, platform, name, run_count, run_date, experiment_count):
+        # type: (str, str, int, datetime, int) -> None
         raise NotImplementedError()
 
     @dispatch

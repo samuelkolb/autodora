@@ -38,7 +38,12 @@ class ParallelToProcess(ParallelObserver):
 
 
 class PrintObserver(ProgressObserver):
-    def run_started(self, platform, name, run_count, run_date):
+    def __init__(self, auto_load=True):
+        super().__init__(auto_load=auto_load)
+        self.experiment_count = None
+
+    def run_started(self, platform, name, run_count, run_date, experiment_count):
+        self.experiment_count = experiment_count
         print("[{}] started: {} - {}".format(platform, name, run_count))
 
     def experiment_started(self, index, experiment):
@@ -70,8 +75,10 @@ class CommandLineRunner(object):
         commands = []
         run_date = datetime.now()
         platform = platform_library.node()
+        name = self.trajectory.name
         if self.observer:
-            self.observer.observer.run_started(platform, self.trajectory.name, self.run_count, run_date)
+            experiment_count = len(self.trajectory.experiments)
+            self.observer.observer.run_started(platform, name, self.run_count, run_date, experiment_count)
         for experiment in self.trajectory.experiments:
             if self.timeout:
                 experiment.config["@timeout"] = self.timeout
@@ -85,7 +92,7 @@ class CommandLineRunner(object):
         meta = [e.identifier for e in self.trajectory.experiments] if self.observer else None
         parallel.run_commands(commands, timeout=self.timeout, observer=self.observer, meta=meta)
         if self.observer:
-            self.observer.observer.run_finished(platform, self.trajectory.name, self.run_count, run_date)
+            self.observer.observer.run_finished(platform, name, self.run_count, run_date)
         return [self.storage.get_experiment(e.__class__, e.identifier) for e in self.trajectory.experiments]
 
 

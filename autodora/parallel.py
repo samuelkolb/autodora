@@ -5,6 +5,7 @@ import subprocess
 from multiprocessing import Queue, Process, Manager
 from multiprocessing.pool import Pool
 from subprocess import TimeoutExpired
+from traceback import print_exc
 from typing import Optional, Union, Any
 
 from .observe import Observer, dispatch
@@ -42,7 +43,10 @@ def observe(observer, queue, count=None):
             if update.status == Update.DONE or update.status == Update.TIMEOUT or update.status == Update.FAILED:
                 if to_see:
                     to_see.remove(update.index)
-            observer.observe(update)
+            try:
+                observer.observe(update)
+            except Exception:
+                print_exc()
         else:
             raise ValueError("Invalid update {}".format(update))
 

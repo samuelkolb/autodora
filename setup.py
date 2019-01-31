@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='autodora',
-    version='0.2.1',
+    version='0.3.0',
     description='Automate experiments and explore your data',
     url='http://github.com/samuelkolb/pydora',
     author='Samuel Kolb',
@@ -13,6 +13,9 @@ setup(
     packages=find_packages(),
     zip_safe=False,
     install_requires=['matplotlib', 'peewee', 'pebble', 'numpy'],
+    extras_require={
+        "telegram": ["python-telegram-bot"],
+    },
     setup_requires=['pytest-runner'],
     tests_require=['pytest'],
 )

@@ -3,9 +3,10 @@ import os
 import pytest
 
 from autodora.observe import ProgressObserver
+from autodora.observers.telegram_observer import TelegramObserver
 from product_experiment import ProductExperiment
 from autodora.trajectory import product
-from autodora.runner import CommandLineRunner, PrintObserver
+from autodora.runner import CommandLineRunner
 
 
 @pytest.fixture(scope='session', autouse=True)
@@ -27,7 +28,8 @@ class CountObserver(ProgressObserver):
         self.started = False
         self.finished = False
 
-    def run_started(self, platform, name, run_count, run_date):
+    def run_started(self, platform, name, run_count, run_date, experiment_count):
+        assert experiment_count == self.experiment_started_count
         assert not self.started
         self.started = True
 
@@ -96,7 +98,13 @@ def test_product_scenario():
     assert len(t.experiments) == len(input_options["input"]) * len(count_options["count"])
 
     observer = CountObserver(len(t.experiments) - len(count_options["count"]), len(count_options["count"]), 0)
-    finished_experiments = CommandLineRunner(t, storage, timeout=timeout, observer=observer).run()
+    dispatcher = ProgressObserver()
+    dispatcher.add_observer(observer)
+    try:
+        dispatcher.add_observer(TelegramObserver())
+    except RuntimeError:
+        pass
+    finished_experiments = CommandLineRunner(t, storage, timeout=timeout, observer=dispatcher).run()
     assert len(finished_experiments) == len(t.experiments)
     observer.done()
     assert len(storage.get_groups()) == 1
