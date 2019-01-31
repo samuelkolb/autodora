@@ -2,7 +2,7 @@ import errno
 import os
 import signal
 import subprocess
-from multiprocessing import Queue, Process, Manager
+from multiprocessing import Queue, Manager
 from multiprocessing.pool import Pool
 from subprocess import TimeoutExpired
 from traceback import print_exc
