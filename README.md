@@ -19,3 +19,9 @@ not included by default (because you might not need them).
     pip install autodora[telegram]
     
 In order to use the observer you have to set the environment variables `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`.
+
+**Example usage**
+
+    export TELEGRAM_BOT_TOKEN="<your-bot-token>"
+    export TELEGRAM_CHAT_ID="<your-chat-id>"
+    pytest
