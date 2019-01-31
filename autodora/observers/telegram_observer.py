@@ -1,11 +1,12 @@
 import os
 
-from telegram import ParseMode
 
 try:
     from telegram.ext import Updater
+    from telegram import ParseMode
 except ImportError:
     Updater = None
+    ParseMode = None
 
 from autodora.observe import ProgressObserver
 
