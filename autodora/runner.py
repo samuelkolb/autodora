@@ -1,5 +1,5 @@
 import inspect
-import platform
+import platform as platform_library
 from datetime import datetime
 from typing import TYPE_CHECKING, Type
 
@@ -33,9 +33,14 @@ class ParallelToProcess(ParallelObserver):
             self.observer.experiment_finished(update.index, meta)
         if update.status == Update.TIMEOUT:
             self.observer.experiment_interrupted(update.index, meta)
+        if update.status == Update.FAILED:
+            self.observer.experiment_failed(update.index, meta)
 
 
 class PrintObserver(ProgressObserver):
+    def run_started(self, platform, name, run_count, run_date):
+        print("[{}] started: {} - {}".format(platform, name, run_count))
+
     def experiment_started(self, index, experiment):
         print("[{}] started: {}".format(index, experiment))
 
@@ -44,6 +49,12 @@ class PrintObserver(ProgressObserver):
 
     def experiment_interrupted(self, index, experiment):
         print("[{}] timed out: {}".format(index, experiment))
+
+    def experiment_failed(self, index, experiment):
+        print("[{}] failed: {}".format(index, experiment))
+
+    def run_finished(self, platform, name, run_count, run_date):
+        print("[{}] done: {} - {}".format(platform, name, run_count))
 
 
 class CommandLineRunner(object):
@@ -57,18 +68,24 @@ class CommandLineRunner(object):
 
     def run(self):
         commands = []
+        run_date = datetime.now()
+        platform = platform_library.node()
+        if self.observer:
+            self.observer.observer.run_started(platform, self.trajectory.name, self.run_count, run_date)
         for experiment in self.trajectory.experiments:
             if self.timeout:
                 experiment.config["@timeout"] = self.timeout
             experiment.config["@run.count"] = self.run_count
-            experiment.config["@run.date"] = datetime.now()
-            experiment.config["@run.computer"] = platform.node()
+            experiment.config["@run.date"] = run_date
+            experiment.config["@run.computer"] = platform
             experiment.save(self.storage)
             storage_name = export_storage(experiment.storage)
             filename = inspect.getfile(experiment.__class__)
             commands.append("python {} {} run {}".format(filename, storage_name, experiment.identifier))
         meta = [e.identifier for e in self.trajectory.experiments] if self.observer else None
         parallel.run_commands(commands, timeout=self.timeout, observer=self.observer, meta=meta)
+        if self.observer:
+            self.observer.observer.run_finished(platform, self.trajectory.name, self.run_count, run_date)
         return [self.storage.get_experiment(e.__class__, e.identifier) for e in self.trajectory.experiments]
 
 

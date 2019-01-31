@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .experiment import Experiment
@@ -27,6 +28,11 @@ class ProgressObserver(Observer):
         self.auto_load = auto_load
 
     @dispatch
+    def run_started(self, platform, name, run_count, run_date):
+        # type: (str, str, int, datetime) -> None
+        raise NotImplementedError()
+
+    @dispatch
     def experiment_started(self, index, experiment):
         # type: (int, Experiment) -> None
         raise NotImplementedError()
@@ -39,6 +45,16 @@ class ProgressObserver(Observer):
     @dispatch
     def experiment_interrupted(self, index, experiment):
         # type: (int, Experiment) -> None
+        raise NotImplementedError()
+
+    @dispatch
+    def experiment_failed(self, index, experiment):
+        # type: (int, Experiment) -> None
+        raise NotImplementedError()
+
+    @dispatch
+    def run_finished(self, platform, name, run_count, run_date):
+        # type: (str, str, int, datetime) -> None
         raise NotImplementedError()
 
 

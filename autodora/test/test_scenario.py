@@ -2,6 +2,7 @@ import os
 
 import pytest
 
+from autodora.observe import ProgressObserver
 from product_experiment import ProductExperiment
 from autodora.trajectory import product
 from autodora.runner import CommandLineRunner, PrintObserver
@@ -14,6 +15,50 @@ def db_conn():
     yield
 
     os.unlink(os.environ["DB"])
+
+
+class CountObserver(ProgressObserver):
+    def __init__(self, experiment_normal_count, experiment_timeout_count, experiment_error_count):
+        super().__init__()
+        self.experiment_started_count = experiment_normal_count + experiment_timeout_count + experiment_error_count
+        self.experiment_normal_count = experiment_normal_count
+        self.experiment_timeout_count = experiment_timeout_count
+        self.experiment_error_count = experiment_error_count
+        self.started = False
+        self.finished = False
+
+    def run_started(self, platform, name, run_count, run_date):
+        assert not self.started
+        self.started = True
+
+    def experiment_started(self, index, experiment):
+        print("Start", self, self.experiment_started_count)
+        assert self.experiment_started_count > 0
+        self.experiment_started_count -= 1
+
+    def experiment_finished(self, index, experiment):
+        assert self.experiment_normal_count > 0
+        self.experiment_normal_count -= 1
+
+    def experiment_interrupted(self, index, experiment):
+        assert self.experiment_timeout_count > 0
+        self.experiment_timeout_count -= 1
+
+    def experiment_failed(self, index, experiment):
+        assert self.experiment_error_count > 0
+        self.experiment_error_count -= 1
+
+    def run_finished(self, platform, name, run_count, run_date):
+        assert not self.finished
+        self.finished = True
+
+    def done(self):
+        assert self.experiment_started_count == 0
+        assert self.experiment_normal_count == 0
+        assert self.experiment_timeout_count == 0
+        assert self.experiment_error_count == 0
+        assert self.started
+        assert self.finished
 
 
 def test_product_scenario():
@@ -50,9 +95,10 @@ def test_product_scenario():
 
     assert len(t.experiments) == len(input_options["input"]) * len(count_options["count"])
 
-    finished_experiments = CommandLineRunner(t, storage, timeout=timeout).run()
+    observer = CountObserver(len(t.experiments) - len(count_options["count"]), len(count_options["count"]), 0)
+    finished_experiments = CommandLineRunner(t, storage, timeout=timeout, observer=observer).run()
     assert len(finished_experiments) == len(t.experiments)
-
+    observer.done()
     assert len(storage.get_groups()) == 1
 
     name2 = "name2"
@@ -63,6 +109,7 @@ def test_product_scenario():
     assert len(storage.get_experiments(ProductExperiment, name)) == len(t.experiments) + 1
     assert len(storage.get_experiments(ProductExperiment, name2)) == 1
 
+    run_date = None
     for e in storage.get_experiments(ProductExperiment, name):
         print(e)
         should_be_run = (e["count"] < 1000)
@@ -82,3 +129,7 @@ def test_product_scenario():
         assert e["@run.count"] == (1 if e.identifier != last_id else 3)
         assert e["@run.computer"] is not None
         assert e["@run.date"] is not None
+        if run_date is None:
+            run_date = e["@run.date"]
+        elif e.identifier != last_id:
+            assert e["@run.date"] == run_date

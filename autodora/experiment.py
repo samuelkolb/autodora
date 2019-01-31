@@ -308,3 +308,21 @@ class Experiment(object):
     def run_cli(cls):
         from .cli import parse_cli
         parse_cli(cls)
+
+    def __getstate__(self):
+        return {
+            "group": self.group,
+            "identifier": self.identifier,
+            "storage": self.storage,
+            "config": self.config,
+            "parameters": self.parameters,
+            "result": self.result,
+            "derived": self.derived,
+        }
+
+    def __setstate__(self, state):
+        self.__init__(state["group"], state["storage"], state["identifier"])
+        self.config = state["config"]
+        self.parameters = state["parameters"]
+        self.result = state["result"]
+        self.derived = state["derived"]

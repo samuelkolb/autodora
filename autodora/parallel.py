@@ -15,6 +15,7 @@ class Update:
     STARTED = "started"
     DONE = "done"
     TIMEOUT = "timeout"
+    FAILED = "failed"
 
     def __init__(self, status, index, command, meta):
         self.status = status
@@ -38,7 +39,7 @@ def observe(observer, queue, count=None):
         if update == Update.SENTINEL:
             return
         elif isinstance(update, Update):
-            if update.status == Update.DONE or update.status == Update.TIMEOUT:
+            if update.status == Update.DONE or update.status == Update.TIMEOUT or update.status == Update.FAILED:
                 if to_see:
                     to_see.remove(update.index)
             observer.observe(update)
@@ -48,7 +49,9 @@ def observe(observer, queue, count=None):
 
 def run_command(args):
     i, meta, command, timeout, queue = args  # type: (int, Any, str, int, Queue)
-    with subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, preexec_fn=os.setsid) as process:
+    # TODO Capture output?
+    with subprocess.Popen(command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                          preexec_fn=os.setsid) as process:
         try:
             if queue:
                 queue.put(Update(Update.STARTED, i, command, meta))
@@ -83,13 +86,9 @@ def run_commands(commands, processes=None, timeout=None, meta=None, observer=Non
     else:
         commands = [(i, meta, command, timeout, queue) for i, command in enumerate(commands)]
 
-    observer_process = None
+    r = pool.map_async(run_command, commands)
+
     if observer:
-        observer_process = Process(target=observe, args=(observer, queue, len(commands)))
-        observer_process.daemon = True
-        observer_process.start()
+        observe(observer, queue, len(commands))
 
-    pool.map(run_command, commands)
-
-    if observer_process:
-        observer_process.join()
+    r.wait()
