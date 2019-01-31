@@ -1,15 +1,11 @@
 import inspect
 import platform as platform_library
 from datetime import datetime
-from typing import TYPE_CHECKING, Type
-
-from pebble import ProcessPool
 
 from .observe import ProgressObserver
 from .parallel import ParallelObserver, Update
 from . import parallel
 from .storage import export_storage
-from concurrent.futures import TimeoutError as OtherTimeoutError
 
 
 class ParallelToProcess(ParallelObserver):
@@ -63,13 +59,14 @@ class PrintObserver(ProgressObserver):
 
 
 class CommandLineRunner(object):
-    def __init__(self, trajectory, storage, processes=None, timeout=None, observer=None):
+    def __init__(self, trajectory, storage, processes=None, timeout=None, observer=None, via_cli=True):
         self.trajectory = trajectory
         self.storage = storage
         self.timeout = timeout
         self.processes = processes
         self.observer = None if observer is None else ParallelToProcess(observer, self)
         self.run_count = self.storage.get_new_run()
+        self.via_cli = via_cli
 
     def run(self):
         commands = []
@@ -87,51 +84,20 @@ class CommandLineRunner(object):
             experiment.config["@run.computer"] = platform
             experiment.save(self.storage)
             storage_name = export_storage(experiment.storage)
-            filename = inspect.getfile(experiment.__class__)
-            commands.append("python {} {} run {}".format(filename, storage_name, experiment.identifier))
+            cls = experiment.__class__
+            filename = inspect.getfile(cls)
+            if self.via_cli:
+                commands.append("python {} {} run {}".format(filename, storage_name, experiment.identifier))
+            else:
+                commands.append((CommandLineRunner.run_single, (self.storage, cls, experiment.identifier)))
         meta = [e.identifier for e in self.trajectory.experiments] if self.observer else None
         parallel.run_commands(commands, timeout=self.timeout, observer=self.observer, meta=meta)
         if self.observer:
             self.observer.observer.run_finished(platform, name, self.run_count, run_date)
         return [self.storage.get_experiment(e.__class__, e.identifier) for e in self.trajectory.experiments]
 
-
-class ParallelRunner(object):
-    def __init__(self, trajectory, storage, processes=None, timeout=None):
-        self.trajectory = trajectory
-        self.storage = storage
-        self.timeout = timeout
-        self.processes = processes
-
-    def run(self):
-        for e in self.trajectory.experiments:
-            if self.timeout:
-                e.config["@timeout"] = self.timeout
-            e.save(self.storage)
-        args_list = [(self.storage, e.__class__, e.identifier) for e in self.trajectory.experiments]
-        results = []
-        with ProcessPool() as pool:
-            future = pool.map(ParallelRunner.run_single, args_list, timeout=self.timeout)
-
-            iterator = future.result()
-
-            while True:
-                exp_id = None
-                try:
-                    exp_id = next(iterator)
-                    results.append(exp_id)
-                    print("[done]    {exp_id}".format(exp_id=exp_id))
-                except StopIteration:
-                    break
-                except (TimeoutError, OtherTimeoutError):
-                    print("[timeout] {exp_id} (timeout={timeout})".format(exp_id=exp_id or "-", timeout=self.timeout))
-
-        return [self.storage.get_experiment(oe.__class__, exp_id)
-                for exp_id, oe in zip(results, self.trajectory.experiments)]
-
     @staticmethod
-    def run_single(arg_tuple):
-        storage, cls, identifier = arg_tuple
+    def run_single(storage, cls, identifier):
         experiment = storage.get_experiment(cls, identifier)
         experiment.run(True)
         return experiment.identifier
@@ -141,6 +107,6 @@ def import_runner(runner_string, trajectory, storage, timeout=None):
     if runner_string == "cli":
         return CommandLineRunner(trajectory, storage, timeout=timeout)
     elif runner_string == "multi":
-        return ParallelRunner(trajectory, storage, timeout=timeout)
+        return CommandLineRunner(trajectory, storage, timeout=timeout, via_cli=False)
     else:
         raise ValueError("Could not parse runner from {}".format(runner_string))
