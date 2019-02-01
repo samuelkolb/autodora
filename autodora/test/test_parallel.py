@@ -5,7 +5,7 @@ from subprocess import check_output
 
 import pytest
 
-from autodora.parallel import run_function
+from autodora.parallel import run_function, run_command
 
 
 def worker2(count):
@@ -70,3 +70,11 @@ def test_parallel_simple_worker():
     run_function(simple_worker, 1, 10, timeout=timeout)
     duration = time.time() - start_time
     assert duration < timeout
+
+
+def test_parallel_output():
+    worker_file = os.path.join(os.path.dirname(__file__), "worker.py")
+    test_string = "hello"
+    command = "python {} {}".format(worker_file, test_string)
+    out, err = run_command(command)
+    assert test_string == out

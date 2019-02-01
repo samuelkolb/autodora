@@ -56,7 +56,7 @@ def observe(observer, queue, count=None):
 
 
 def run_command(command, timeout=None):
-    worker((-1, None, command, timeout, None))
+    return worker((-1, None, command, timeout, None))
 
 
 def run_function(f, *args, timeout=None, **kwargs):
@@ -76,14 +76,15 @@ def worker(args):
             raise ValueError("Command must be either string, args or function-args pair")
 
     if is_string:
-        with subprocess.Popen(command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        with subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                               start_new_session=True) as process:
             try:
                 if queue:
                     queue.put(Update(Update.STARTED, i, command, meta))
-                process.communicate(timeout=timeout)
+                out, err = process.communicate(timeout=timeout)
                 if queue:
                     queue.put(Update(Update.DONE, i, command, meta))
+                return out.decode(), err.decode()
             except TimeoutExpired:
                 try:
                     os.killpg(process.pid, signal.SIGINT)  # send signal to the process group
