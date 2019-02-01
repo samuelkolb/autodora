@@ -10,7 +10,7 @@ from .trajectory import Trajectory
 
 
 class Parameter(object):
-    def __init__(self, p_type, default, description=None, name=None, arg_name=None):
+    def __init__(self, p_type, default=None, description=None, name=None, arg_name=None):
         self.name = name
         self.p_type = p_type
         self.default = default
