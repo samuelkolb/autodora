@@ -72,6 +72,7 @@ class TelegramObserver(ProgressObserver):
 
     def experiment_failed(self, index, experiment):
         self.errors += 1
+        self.error_messages.append(experiment["@error"])
         self.send_message()
 
     def run_finished(self, platform, name, run_count, run_date):

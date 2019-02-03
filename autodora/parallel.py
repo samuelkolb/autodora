@@ -83,7 +83,10 @@ def worker(args):
                     queue.put(Update(Update.STARTED, i, command, meta))
                 out, err = process.communicate(timeout=timeout)
                 if queue:
-                    queue.put(Update(Update.DONE, i, command, meta))
+                    if process.returncode == 0:
+                        queue.put(Update(Update.DONE, i, command, meta))
+                    else:
+                        queue.put(Update(Update.FAILED, i, command, meta))
                 return out.decode(), err.decode()
             except TimeoutExpired:
                 try:

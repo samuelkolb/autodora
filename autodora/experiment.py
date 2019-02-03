@@ -1,5 +1,5 @@
-import sys
 import time
+import traceback
 from datetime import datetime
 from typing import Union, Any, Dict, List, Optional, TYPE_CHECKING
 
@@ -256,6 +256,11 @@ class Experiment(object):
             return self
         except KeyboardInterrupt:
             return self
+        except Exception:
+            self.result["@error"] = traceback.format_exc()
+            if auto_save and self.storage:
+                self.save()
+            raise
 
     def run_internal(self):
         raise NotImplementedError()
