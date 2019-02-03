@@ -122,6 +122,7 @@ class Experiment(object):
         self.parameters = Group("parameters")
 
         self.result = Group("result")
+        self.result.add_parameter("@error", str, None, "Potential error messages")
         self.result.add_parameter("@start_time", datetime, None, "When this experiment was started")
         self.result.add_parameter("@end_time", datetime, None, "When this experiment was started")
         self.result.add_parameter("@runtime", float, None, "How long the experiment took to execute (perf time)")
