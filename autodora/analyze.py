@@ -262,8 +262,15 @@ def show(
                     deviations[(k, i, t)] = np.std(np.array([r[i] for r in groups[k]]))
                 except TypeError:
                     deviations[(k, i, t)] = None
-        result_table = [
-            ["{:.4f} (+/- {:.4f})".format(aggregator([r[i] for r in groups[k]]), deviations[(k, i, t)] or 0)
-             for i, t in enumerate(targets)] for k in keys
-        ]
+        result_table = []
+        for k in keys:
+            row = []
+            for i, t in enumerate(targets):
+                result = aggregator([r[i] for r in groups[k]])
+                if result:
+                    deviation = deviations[(k, i, t)] or 0
+                    row.append("{:.4f} (+/- {:.4f})".format(result, deviation))
+                else:
+                    row.append("None")
+            result_table.append(row)
         print(table(result_table, targets, list(zip(*key_names))))
