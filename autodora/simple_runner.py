@@ -22,7 +22,7 @@ class SimpleRunner(object):
             experiment_count = len(self.trajectory.experiments)
             self.observer.run_started(platform, name, self.run_count, run_date, experiment_count)
         for i, experiment in enumerate(self.trajectory.experiments):
-            experiment.config["@run.count"] = self.run_count
+            experiment.config["@run.count"] = self.run_count if self.storage else -1
             experiment.config["@run.date"] = run_date
             experiment.config["@run.computer"] = platform
             if self.storage:
