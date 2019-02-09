@@ -11,7 +11,7 @@ from autodora.runner import CommandLineRunner
 
 @pytest.fixture(scope='session', autouse=True)
 def db_conn():
-    os.environ["DB"] = os.path.join(os.path.dirname(__file__), "test.sqlite")
+    os.environ["DB"] = os.path.join(os.path.dirname(__file__), "tests.sqlite")
 
     yield
 
