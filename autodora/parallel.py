@@ -66,11 +66,11 @@ def observe(observer, queue, count=None):
 
 
 def run_command(command, timeout=None):
-    return worker((-1, None, command, timeout, None))
+    return worker((-1, None, command, timeout, None, None))
 
 
 def run_function(f, *args, timeout=None, **kwargs):
-    worker((-1, None, (f, args, kwargs), timeout, None))
+    worker((-1, None, (f, args, kwargs), timeout, None, None))
 
 
 def worker(args):
@@ -89,7 +89,8 @@ def worker(args):
         with subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                               start_new_session=True) as process:
             try:
-                m_queue.put(Update(Update.STARTED, i, command, process.pid))
+                if m_queue:
+                    m_queue.put(Update(Update.STARTED, i, command, process.pid))
                 if queue:
                     queue.put(Update(Update.STARTED, i, command, meta))
                 out, err = process.communicate(timeout=timeout)
@@ -114,7 +115,8 @@ def worker(args):
 
                 process.communicate()
             finally:
-                m_queue.put(Update(Update.DONE, i, command, process.pid))
+                if m_queue:
+                    m_queue.put(Update(Update.DONE, i, command, process.pid))
 
     else:
         assert isinstance(command, (tuple, list))
@@ -151,10 +153,10 @@ def status(s):
 def run_commands(commands, processes=None, timeout=None, meta=None, observer=None):
     pool = Pool(processes=processes)
     manager, queue, m = None, None, None
+    manager = Manager()
+    m = manager.Queue()
     if observer:
-        manager = Manager()
         queue = manager.Queue()
-        m = manager.Queue()
 
     if meta:
         commands = [(i, meta, command, timeout, queue, m) for i, (command, meta) in enumerate(zip(commands, meta))]
