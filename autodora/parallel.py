@@ -1,18 +1,18 @@
+import atexit
 import errno
 import multiprocessing
 import os
 import signal
 import subprocess
-from multiprocessing import Queue, Manager, Process, cpu_count
+from multiprocessing import Queue, Manager, Process
 from multiprocessing.pool import Pool
 from subprocess import TimeoutExpired
 from traceback import print_exc
 from typing import Optional, Union, Any
 
-from pebble import ProcessPool
+from temporary import temp_file
 
 from .observe import Observer, dispatch
-from concurrent.futures import TimeoutError as OtherTimeoutError
 
 
 class Update:
@@ -34,6 +34,16 @@ class ParallelObserver(Observer):
     def observe(self, update):
         # type: (Update) -> None
         raise NotImplementedError()
+
+
+def monitor(filename, monitor_queue):
+    with open(filename, "w") as ref:
+        while True:
+            update = monitor_queue.get()  # type: Union[Update, str]
+            if update.status == Update.STARTED:
+                print("ADD", update.meta, sep=" ", file=ref)
+            else:
+                print("REM", update.meta, sep=" ", file=ref)
 
 
 def observe(observer, queue, count=None):
@@ -64,7 +74,7 @@ def run_function(f, *args, timeout=None, **kwargs):
 
 
 def worker(args):
-    i, meta, command, timeout, queue = args  # type: (int, Any, Any, int, Queue)
+    i, meta, command, timeout, queue, m_queue = args  # type: (int, Any, Any, int, Queue, Queue)
     # TODO Capture output?
 
     if isinstance(command, str):
@@ -79,6 +89,7 @@ def worker(args):
         with subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                               start_new_session=True) as process:
             try:
+                m_queue.put(Update(Update.STARTED, i, command, process.pid))
                 if queue:
                     queue.put(Update(Update.STARTED, i, command, meta))
                 out, err = process.communicate(timeout=timeout)
@@ -102,6 +113,9 @@ def worker(args):
                         queue.put(Update(Update.TIMEOUT, i, command, meta))
 
                 process.communicate()
+            finally:
+                m_queue.put(Update(Update.DONE, i, command, process.pid))
+
     else:
         assert isinstance(command, (tuple, list))
         if len(command) < 2:
@@ -129,21 +143,83 @@ def worker(args):
                 queue.put(Update(Update.DONE, i, command, meta))
 
 
+def status(s):
+    """Prints things in bold."""
+    print('\033[1m{0}\033[0m'.format(s))
+
+
 def run_commands(commands, processes=None, timeout=None, meta=None, observer=None):
     pool = Pool(processes=processes)
-    manager, queue = None, None
+    manager, queue, m = None, None, None
     if observer:
         manager = Manager()
         queue = manager.Queue()
+        m = manager.Queue()
 
     if meta:
-        commands = [(i, meta, command, timeout, queue) for i, (command, meta) in enumerate(zip(commands, meta))]
+        commands = [(i, meta, command, timeout, queue, m) for i, (command, meta) in enumerate(zip(commands, meta))]
     else:
-        commands = [(i, meta, command, timeout, queue) for i, command in enumerate(commands)]
+        commands = [(i, meta, command, timeout, queue, m) for i, command in enumerate(commands)]
+
+    with temp_file() as f:
+        filename = f
+
+    m_process = Process(target=monitor, args=(filename, m))
+    m_process.daemon = True
+    m_process.start()
+
+    def clean_exit():
+        status("Keyboard interrupt intercepted, shutting down")
+        try:
+            m_process.terminate()
+            m_process.join()
+        except Exception:
+            status("Monitor process could not be shut down")
+            print_exc()
+
+        try:
+            pool.terminate()
+            pool.join()
+        except Exception:
+            status("Pool could not be shut down")
+            print_exc()
+
+        status("Shutting down potential orphan processes")
+        active = set()
+        with open(filename) as ref:
+            for line in ref:
+                parts = line.split(" ")
+                if parts[0] == "ADD":
+                    active.add(int(parts[1]))
+                elif parts[0] == "REM":
+                    active.remove(int(parts[1]))
+
+        for pid in active:
+            try:
+                print("Killing", pid)
+                os.killpg(pid, signal.SIGINT)  # send signal to the process group
+            except OSError as e:
+                if e.errno != errno.ESRCH:
+                    if e.errno == errno.EPERM:
+                        os.waitpid(-pid, 0)
+                else:
+                    raise e
+            except Exception:
+                print_exc()
+                pass
+
+        os.unlink(filename)
+
+        status("Completely shut down")
 
     r = pool.map_async(worker, commands)
+    atexit.register(clean_exit)
 
     if observer:
         observe(observer, queue, len(commands))
 
     r.wait()
+    status("### DONE ##")
+    m.put(Update.SENTINEL)
+    m_process.join()
+

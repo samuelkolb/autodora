@@ -255,10 +255,8 @@ class Experiment(object):
             if auto_save and self.storage:
                 self.save()
             return self
-        except KeyboardInterrupt:
-            return self
         except Exception:
-            self.result["@error"] = traceback.format_exc()
+            self.result["@error"] = "ERROR\n" + traceback.format_exc()
             if auto_save and self.storage:
                 self.save()
             raise

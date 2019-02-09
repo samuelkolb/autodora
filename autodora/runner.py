@@ -18,7 +18,7 @@ class ParallelToProcess(ParallelObserver):
     def observe(self, update):
         if self.observer.auto_load:
             meta = self.runner.trajectory.experiments[update.index]
-            if update.status == Update.DONE:
+            if update.status == Update.DONE or update.status == Update.FAILED:
                 meta = meta.fresh_copy()
         else:
             meta = update.meta
@@ -91,7 +91,8 @@ class CommandLineRunner(object):
             else:
                 commands.append((CommandLineRunner.run_single, (self.storage, cls, experiment.identifier)))
         meta = [e.identifier for e in self.trajectory.experiments] if self.observer else None
-        parallel.run_commands(commands, timeout=self.timeout, observer=self.observer, meta=meta)
+        parallel.run_commands(commands, timeout=self.timeout, observer=self.observer, meta=meta,
+                              processes=self.processes)
         if self.observer:
             self.observer.observer.run_finished(platform, name, self.run_count, run_date)
         return [self.storage.get_experiment(e.__class__, e.identifier) for e in self.trajectory.experiments]

@@ -14,7 +14,7 @@ setup(
     zip_safe=False,
     install_requires=['matplotlib', 'peewee', 'pebble', 'numpy'],
     extras_require={
-        "telegram": ["python-telegram-bot"],
+        "telegram": ["python-telegram-bot", "temporary"],
     },
     setup_requires=['pytest-runner'],
     tests_require=['pytest'],
