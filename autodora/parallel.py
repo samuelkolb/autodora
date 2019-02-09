@@ -40,7 +40,9 @@ def monitor(filename, monitor_queue):
     with open(filename, "w") as ref:
         while True:
             update = monitor_queue.get()  # type: Union[Update, str]
-            if update.status == Update.STARTED:
+            if update == Update.SENTINEL:
+                return
+            elif update.status == Update.STARTED:
                 print("ADD", update.meta, sep=" ", file=ref)
             else:
                 print("REM", update.meta, sep=" ", file=ref)
