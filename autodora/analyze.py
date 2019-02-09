@@ -53,6 +53,8 @@ def add_arguments(parser: ArgumentParser):
 
 
 def mean(iterable):
+    if any(e is None for e in iterable):
+        return None
     return sum(iterable) / len(iterable)
 
 
