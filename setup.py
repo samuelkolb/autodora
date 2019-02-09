@@ -24,6 +24,7 @@ EXTRAS = {
 }
 
 # Distribute: python setup.py upload
+# Requires: pip install twine wheel
 
 here = os.path.abspath(os.path.dirname(__file__))
 
@@ -90,12 +91,7 @@ setup(
     extras_require=EXTRAS,
     setup_requires=['pytest-runner'],
     tests_require=["pytest"],
-    entry_points={
-        "console_scripts": [
-            "pywmi-install = pywmi.install:main",
-            "pywmi-cli = pywmi.__main__:parse"
-        ]
-    },
+    entry_points={},
     cmdclass={
         'upload': UploadCommand,
     },
