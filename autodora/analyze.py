@@ -167,6 +167,8 @@ def is_excluded_from_string(filter_string, experiment):
             value = parts[1]
         return get_property(0, experiment, parts[0]) == value
 
+    if filter_string.startswith("!"):
+        return not bool(get_property(0, experiment, filter_string[1:]))
     return bool(get_property(0, experiment, filter_string))
 
 
