@@ -1,6 +1,7 @@
 from argparse import ArgumentParser
 from typing import Type, TYPE_CHECKING
 
+from analyze import is_excluded_from_string
 from .runner import import_runner
 from .storage import import_storage
 from .analyze import add_arguments, show_from_args
@@ -32,9 +33,12 @@ def parse_cli(cls):
 
     list_parser = sub_parser.add_parser("list")
     list_parser.add_argument("name")
+    list_parser.add_argument("-e", "--exclude", type=str, default=None)
 
-    list_parser = sub_parser.add_parser("remove")
-    list_parser.add_argument("name")
+    remove_parser = sub_parser.add_parser("remove")
+    remove_parser.add_argument("name")
+    remove_parser.add_argument("-e", "--exclude", type=str, default=None)
+    remove_parser.add_argument("--dry_run", action="store_true")
 
     groups_parser = sub_parser.add_parser("groups")
 
@@ -75,8 +79,16 @@ def parse_cli(cls):
             engine = import_runner(args.e, trajectory, storage, args.t)
             engine.run()
     elif args.mode == "list":
-            print(*storage.get_experiments(cls, args.name), sep="\n")
+        exclusion_filter = args.excluded
+        print(*[e for e in storage.get_experiments(cls, args.name)
+                if not exclusion_filter or not is_excluded_from_string(exclusion_filter, e)], sep="\n")
     elif args.mode == "remove":
-            storage.remove(args.name)
+        exclusion_filter = args.excluded
+        if exclusion_filter:
+            for e in storage.get_experiments(cls, args.name):
+                if not is_excluded_from_string(exclusion_filter, e):
+                    storage.remove(args.name, experiment_id=e.identifier, dry_run=args.dry_run)
+        else:
+            storage.remove(args.name, dry_run=args.dry_run)
     elif args.mode == "groups":
         print(storage.get_groups())

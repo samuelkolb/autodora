@@ -17,7 +17,7 @@ class Storage(object):
         # type: (Type, Optional[str]) -> List[Experiment]
         raise NotImplementedError()
 
-    def remove(self, group):
+    def remove(self, group, experiment_id=None, dry_run=False):
         raise NotImplementedError()
 
     def get_groups(self):

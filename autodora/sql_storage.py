@@ -92,8 +92,15 @@ class SqliteStorage(Storage):
             return list(map(partial(self.transform, cls),
                             ExperimentModel.select().where(ExperimentModel.cls_name == cls_name)))
 
-    def remove(self, group):
-        ExperimentModel.delete().where(ExperimentModel.group == group).execute()
+    def remove(self, group, experiment_id=None, dry_run=False):
+        if experiment_id:
+            query = ExperimentModel.delete().where(ExperimentModel.group == group, ExperimentModel.id == experiment_id)
+        else:
+            query = ExperimentModel.delete().where(ExperimentModel.group == group)
+        if dry_run:
+            print(query)
+        else:
+            query.execute()
 
     @database.atomic('EXCLUSIVE')
     def get_new_run(self):
