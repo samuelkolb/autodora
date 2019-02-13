@@ -154,11 +154,17 @@ def is_excluded_from_string(filter_string, experiment):
         return get_property(0, experiment, parts[0]) > value
     if "!=" in filter_string:
         parts = filter_string.split("!=", 2)
-        value = float(parts[1])
+        try:
+            value = float(parts[1])
+        except ValueError:
+            value = parts[1]
         return get_property(0, experiment, parts[0]) != value
     if "=" in filter_string:
         parts = filter_string.split("=", 2)
-        value = float(parts[1])
+        try:
+            value = float(parts[1])
+        except ValueError:
+            value = parts[1]
         return get_property(0, experiment, parts[0]) == value
 
     return bool(get_property(0, experiment, filter_string))
