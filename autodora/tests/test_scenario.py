@@ -47,6 +47,7 @@ class CountObserver(ProgressObserver):
         self.experiment_timeout_count -= 1
 
     def experiment_failed(self, index, experiment):
+        print(experiment)
         assert self.experiment_error_count > 0
         self.experiment_error_count -= 1
 

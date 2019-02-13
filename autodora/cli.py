@@ -1,7 +1,7 @@
 from argparse import ArgumentParser
 from typing import Type, TYPE_CHECKING
 
-from analyze import is_excluded_from_string
+from .analyze import is_excluded_from_string
 from .runner import import_runner
 from .storage import import_storage
 from .analyze import add_arguments, show_from_args
