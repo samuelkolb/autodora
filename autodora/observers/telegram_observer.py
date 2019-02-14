@@ -41,8 +41,8 @@ class TelegramObserver(ProgressObserver):
             done=self.done,
             timed_out=self.timed_out,
             failed=self.errors,
-            messages=("".join(["\n{}".format(m) for m in ["\nError messages:"] + self.error_messages])
-            if len(self.error_messages) > 0 else ""),
+            messages="",  # ("".join(["\n{}".format(m) for m in ["\nError messages:"] + self.error_messages])
+            # if len(self.error_messages) > 0 else ""),
             platform=self.run_platform,
         )
         if self.message_id is None:
@@ -70,8 +70,10 @@ class TelegramObserver(ProgressObserver):
 
     def experiment_failed(self, index, experiment):
         self.errors += 1
-        self.error_messages.append("({}) {}".format(index, experiment["@error"].split("\n")[-2]))
+        message = "({}) {}".format(index, experiment["@error"].split("\n")[-2])
+        self.error_messages.append(message)
         self.send_message()
+        self.updater.bot.send_message(chat_id=self.chat_id, text=message)
 
     def run_finished(self, platform, name, run_count, run_date):
         self.send_message(True)
