@@ -32,7 +32,7 @@ def parse_cli(cls):
     explore_parser.add_argument("-t", type=int, default=None, help="Timeout for the execution")
 
     list_parser = sub_parser.add_parser("list")
-    list_parser.add_argument("name")
+    list_parser.add_argument("name", nargs="?", default=None)
     list_parser.add_argument("-e", "--exclude", type=str, default=None)
 
     remove_parser = sub_parser.add_parser("remove")
@@ -79,9 +79,12 @@ def parse_cli(cls):
             engine = import_runner(args.e, trajectory, storage, args.t)
             engine.run()
     elif args.mode == "list":
-        exclusion_filter = args.excluded
-        print(*[e for e in storage.get_experiments(cls, args.name)
-                if not exclusion_filter or not is_excluded_from_string(exclusion_filter, e)], sep="\n")
+        if args.name:
+            exclusion_filter = args.excluded
+            print(*[e for e in storage.get_experiments(cls, args.name)
+                    if not exclusion_filter or not is_excluded_from_string(exclusion_filter, e)], sep="\n")
+        else:
+            print(*storage.get_groups(), sep="\n")
     elif args.mode == "remove":
         exclusion_filter = args.excluded
         if exclusion_filter:
@@ -90,5 +93,3 @@ def parse_cli(cls):
                     storage.remove(args.name, experiment_id=e.identifier, dry_run=args.dry_run)
         else:
             storage.remove(args.name, dry_run=args.dry_run)
-    elif args.mode == "groups":
-        print(storage.get_groups())
