@@ -33,11 +33,11 @@ def parse_cli(cls):
 
     list_parser = sub_parser.add_parser("list")
     list_parser.add_argument("name", nargs="?", default=None)
-    list_parser.add_argument("-e", "--exclude", type=str, default=None)
+    list_parser.add_argument("-e", "--exclude", nargs="+", type=str, default=None)
 
     remove_parser = sub_parser.add_parser("remove")
     remove_parser.add_argument("name")
-    remove_parser.add_argument("-e", "--exclude", type=str, default=None)
+    remove_parser.add_argument("-e", "--exclude", nargs="+", type=str, default=None)
     remove_parser.add_argument("--dry_run", action="store_true")
 
     groups_parser = sub_parser.add_parser("groups")
