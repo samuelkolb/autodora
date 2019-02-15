@@ -80,13 +80,13 @@ def parse_cli(cls):
             engine.run()
     elif args.mode == "list":
         if args.name:
-            exclusion_filter = args.excluded
+            exclusion_filter = args.exclude
             print(*[e for e in storage.get_experiments(cls, args.name)
                     if not exclusion_filter or not is_excluded_from_string(exclusion_filter, e)], sep="\n")
         else:
             print(*storage.get_groups(), sep="\n")
     elif args.mode == "remove":
-        exclusion_filter = args.excluded
+        exclusion_filter = args.exclude
         if exclusion_filter:
             for e in storage.get_experiments(cls, args.name):
                 if not is_excluded_from_string(exclusion_filter, e):
