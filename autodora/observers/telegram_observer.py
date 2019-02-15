@@ -55,6 +55,13 @@ class TelegramObserver(ProgressObserver):
 
     def run_started(self, platform, name, run_count, run_date, experiment_count):
         self.total = experiment_count
+        self.timed_out = 0
+        self.done = 0
+        self.errors = 0
+        self.error_messages = []
+        self.run_id = None
+        self.run_platform = None
+
         self.run_id = "{}.{}".format(name, run_count)
         self.run_platform = platform
         self.send_message()
