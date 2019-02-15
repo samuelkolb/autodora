@@ -72,7 +72,7 @@ class TelegramObserver(ProgressObserver):
 
     def experiment_failed(self, index, experiment):
         self.errors += 1
-        message = "({}) {}".format(index, experiment["@error"].split("\n")[-2])
+        message = "[{}] {}".format(index, experiment["@error"].split("\n")[-2])
         self.error_messages.append(message)
         self.send_message()
         self.updater.bot.send_message(chat_id=self.chat_id, text=message)
