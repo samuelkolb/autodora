@@ -1,7 +1,7 @@
 import inspect
 import platform as platform_library
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional, Dict
 
 from .observe import ProgressObserver
 from .parallel import ParallelObserver, Update
@@ -9,7 +9,9 @@ from . import parallel
 from .storage import export_storage
 
 if TYPE_CHECKING:
-    from storage import Storage
+    from .storage import Storage
+    from .experiment import Experiment
+    from .trajectory import Trajectory
 
 
 class ParallelToProcess(ParallelObserver):
@@ -64,7 +66,7 @@ class PrintObserver(ProgressObserver):
 
 class Runner:
     def __init__(self, trajectory, observer):
-        self.trajectory = trajectory
+        self.trajectory = trajectory  # type: Trajectory
         self.observer = observer
 
     @staticmethod
@@ -75,8 +77,8 @@ class Runner:
                 if e[k] != v:
                     matches = False
             if matches:
-                return True
-        return False
+                return e
+        return None
 
 
 class StoredRunner(Runner):
@@ -94,10 +96,11 @@ class StoredRunner(Runner):
             self._previous_experiments = self.storage.get_experiments(experiment.__class__, self.trajectory.name)
         return Runner.setting_exists(setting, self._previous_experiments)
 
-    def should_run(self, setting, experiment):
-        if not self.repeat and self.setting_exists(setting, experiment):
-            return False
-        return True
+    def get_existing(self, setting, experiment):
+        # type: (Dict, Experiment) -> Optional[Experiment]
+        if not self.repeat:
+            return self.setting_exists(setting, experiment)
+        return None
 
 
 class CommandLineRunner(StoredRunner):
@@ -113,8 +116,13 @@ class CommandLineRunner(StoredRunner):
         platform = platform_library.node()
         name = self.trajectory.name
 
-        experiments = [e for s, e in zip(self.trajectory.settings, self.trajectory.experiments)
-                       if self.should_run(s, e)]
+        experiments = []
+        for s, e in zip(self.trajectory.settings, self.trajectory.experiments):
+            existing = self.get_existing(s, e)
+            if existing is None:
+                experiments.append(e)
+            else:
+                e.identifier = existing.identifier
 
         if self.observer:
             experiment_count = len(experiments)

@@ -112,7 +112,7 @@ def test_product_scenario():
 
     name2 = "name2"
     CommandLineRunner(ProductExperiment.explore(name2, {}), storage).run()
-    last_id = CommandLineRunner(ProductExperiment.explore(name, {}), storage, repeat=False).run()[0].identifier
+    last_id = CommandLineRunner(ProductExperiment.explore(name, {}), storage, repeat=True).run()[0].identifier
 
     assert len(storage.get_groups()) == 2
     assert len(storage.get_experiments(ProductExperiment, name)) == len(t.experiments) + 1

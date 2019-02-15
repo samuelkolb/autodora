@@ -1,5 +1,7 @@
-from typing import Dict, Any, List
+from typing import Dict, Any, List, TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from .experiment import Experiment
 
 def flatten(dict_settings):
     common_length = None
@@ -21,7 +23,7 @@ def product(*args):
 
 class Trajectory(object):
     def __init__(self, name):
-        self.experiments = []
+        self.experiments = []  # type: List[Experiment]
         self.settings = []
         self.name = name
 
