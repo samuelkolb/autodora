@@ -70,9 +70,12 @@ class Runner:
     @staticmethod
     def setting_exists(setting, previous_experiments):
         for e in previous_experiments:
+            matches = True
             for k, v in setting.items():
                 if e[k] != v:
-                    return True
+                    matches = False
+            if matches:
+                return True
         return False
 
 
