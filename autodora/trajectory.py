@@ -22,6 +22,7 @@ def product(*args):
 class Trajectory(object):
     def __init__(self, name):
         self.experiments = []
+        self.settings = []
         self.name = name
 
     def add(self, experiment):
@@ -41,6 +42,7 @@ class Trajectory(object):
                 settings = [{k: v[i] for k, v in settings.items()} for i in range(common_length)]
 
         for setting in settings:
+            self.settings.append(setting)
             experiment = cls(self.name)
             for key, value in setting.items():
                 experiment[key] = value

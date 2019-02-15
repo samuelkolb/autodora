@@ -1,11 +1,15 @@
 import inspect
 import platform as platform_library
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from .observe import ProgressObserver
 from .parallel import ParallelObserver, Update
 from . import parallel
 from .storage import export_storage
+
+if TYPE_CHECKING:
+    from storage import Storage
 
 
 class ParallelToProcess(ParallelObserver):
@@ -58,14 +62,46 @@ class PrintObserver(ProgressObserver):
         print("[{}] done: {} - {}".format(platform, name, run_count))
 
 
-class CommandLineRunner(object):
-    def __init__(self, trajectory, storage, processes=None, timeout=None, observer=None, via_cli=True):
+class Runner:
+    def __init__(self, trajectory, observer):
         self.trajectory = trajectory
+        self.observer = observer
+
+    @staticmethod
+    def setting_exists(setting, previous_experiments):
+        for e in previous_experiments:
+            for k, v in setting.items():
+                if e[k] != v:
+                    return False
+        return True
+
+
+class StoredRunner(Runner):
+    def __init__(self, trajectory, storage, observer, repeat):
+        super().__init__(trajectory, observer)
         self.storage = storage
+        self.repeat = repeat
+        self._previous_experiments = None
+        self.run_count = None if storage is None else self.storage.get_new_run()
+
+    def setting_exists(self, setting):
+        if self.storage is None:
+            return False
+        if self._previous_experiments is None:
+            self._previous_experiments = self.storage.get_experiments(self.trajectory.name)
+        return Runner.setting_exists(setting, self._previous_experiments)
+
+    def should_run(self, setting, experiment):
+        if not self.repeat and self.setting_exists(setting):
+            return False
+        return True
+
+
+class CommandLineRunner(StoredRunner):
+    def __init__(self, trajectory, storage, processes=None, timeout=None, observer=None, via_cli=True, repeat=False):
+        super().__init__(trajectory, storage, None if observer is None else ParallelToProcess(observer, self), repeat)
         self.timeout = timeout
         self.processes = processes
-        self.observer = None if observer is None else ParallelToProcess(observer, self)
-        self.run_count = self.storage.get_new_run()
         self.via_cli = via_cli
 
     def run(self):
@@ -73,10 +109,15 @@ class CommandLineRunner(object):
         run_date = datetime.now()
         platform = platform_library.node()
         name = self.trajectory.name
+
+        experiments = [e for s, e in zip(self.trajectory.settings, self.trajectory.experiments)
+                       if self.should_run(s, e)]
+
         if self.observer:
-            experiment_count = len(self.trajectory.experiments)
+            experiment_count = len(experiments)
             self.observer.observer.run_started(platform, name, self.run_count, run_date, experiment_count)
-        for experiment in self.trajectory.experiments:
+
+        for experiment in experiments:
             if self.timeout:
                 experiment.config["@timeout"] = self.timeout
             experiment.config["@run.count"] = self.run_count
@@ -90,7 +131,8 @@ class CommandLineRunner(object):
                 commands.append("python {} {} run {}".format(filename, storage_name, experiment.identifier))
             else:
                 commands.append((CommandLineRunner.run_single, (self.storage, cls, experiment.identifier)))
-        meta = [e.identifier for e in self.trajectory.experiments] if self.observer else None
+
+        meta = [e.identifier for e in experiments] if self.observer else None
         parallel.run_commands(commands, timeout=self.timeout, observer=self.observer, meta=meta,
                               processes=self.processes)
         if self.observer:
