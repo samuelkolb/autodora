@@ -72,27 +72,27 @@ class Runner:
         for e in previous_experiments:
             for k, v in setting.items():
                 if e[k] != v:
-                    return False
-        return True
+                    return True
+        return False
 
 
 class StoredRunner(Runner):
     def __init__(self, trajectory, storage, observer, repeat):
         super().__init__(trajectory, observer)
-        self.storage = storage
+        self.storage = storage  # type: Storage
         self.repeat = repeat
         self._previous_experiments = None
         self.run_count = None if storage is None else self.storage.get_new_run()
 
-    def setting_exists(self, setting):
+    def setting_exists(self, setting, experiment):
         if self.storage is None:
             return False
         if self._previous_experiments is None:
-            self._previous_experiments = self.storage.get_experiments(self.trajectory.name)
+            self._previous_experiments = self.storage.get_experiments(experiment.__class__, self.trajectory.name)
         return Runner.setting_exists(setting, self._previous_experiments)
 
     def should_run(self, setting, experiment):
-        if not self.repeat and self.setting_exists(setting):
+        if not self.repeat and self.setting_exists(setting, experiment):
             return False
         return True
 
