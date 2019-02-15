@@ -32,7 +32,7 @@ class TelegramObserver(ProgressObserver):
         self.run_platform = None
 
     def send_message(self, done=False):
-        template = "{run} ({start})\n{platform}\n{done} succeeded," \
+        template = "*{run} ({start})*\n_{platform}_\n{done} succeeded," \
                    " {timed_out} timed out, {failed} failed{messages}"
         total_done = self.done + self.timed_out + self.errors
         message = template.format(
@@ -46,10 +46,12 @@ class TelegramObserver(ProgressObserver):
             platform=self.run_platform,
         )
         if self.message_id is None:
-            self.message_id = self.updater.bot.send_message(chat_id=self.chat_id, text=message).message_id
+            self.message_id = self.updater.bot.send_message(chat_id=self.chat_id, text=message,
+                                                            parse_mode=ParseMode.MARKDOWN).message_id
         else:
             print(message, type(message))
-            self.updater.bot.edit_message_text(chat_id=self.chat_id, text=message, message_id=self.message_id)
+            self.updater.bot.edit_message_text(chat_id=self.chat_id, text=message, message_id=self.message_id,
+                                               parse_mode=ParseMode.MARKDOWN)
 
     def run_started(self, platform, name, run_count, run_date, experiment_count):
         self.total = experiment_count
