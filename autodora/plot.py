@@ -135,7 +135,7 @@ class ScatterData:
         # legend_names = ["No mixing - DT", "No mixing - RF", "Mixing - DT", "Mixing - RF"]
         # legend_names = ["No formulas", "Formulas"]
         # legend_names = []
-        if 10 >= len(self.data) == len(legend_names) and legend_pos:
+        if 15 >= len(self.data) == len(legend_names) and legend_pos:
             ax.legend(plots, legend_names, loc=legend_pos)
 
         if log_x:
