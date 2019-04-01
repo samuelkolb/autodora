@@ -166,7 +166,7 @@ def run_commands(commands, processes=None, timeout=None, meta=None, observer=Non
         commands = [(i, meta, command, timeout, queue, m) for i, command in enumerate(commands)]
 
     with temp_file() as f:
-        filename = f
+        filename = str(f)
 
     m_process = Process(target=monitor, args=(filename, m))
     m_process.daemon = True
