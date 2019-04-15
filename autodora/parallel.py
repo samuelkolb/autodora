@@ -104,7 +104,7 @@ def worker(args):
                 return out.decode(), err.decode()
             except TimeoutExpired:
                 try:
-                    os.killpg(process.pid, signal.SIGINT)  # send signal to the process group
+                    os.killpg(process.pid, signal.SIGTERM)  # send signal to the process group
                 except OSError as e:
                     if e.errno != errno.ESRCH:
                         if e.errno == errno.EPERM:
@@ -201,7 +201,7 @@ def run_commands(commands, processes=None, timeout=None, meta=None, observer=Non
         for pid in active:
             try:
                 print("Killing", pid)
-                os.killpg(pid, signal.SIGINT)  # send signal to the process group
+                os.killpg(pid, signal.SIGTERM)  # send signal to the process group
             except OSError as e:
                 if e.errno != errno.ESRCH:
                     if e.errno == errno.EPERM:
