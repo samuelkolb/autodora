@@ -241,6 +241,7 @@ class Experiment(object):
             self.result["@start_time"] = datetime.now()
             if auto_save:
                 self.save()
+            self.before_run()
             start = time.perf_counter()
             start_process = time.process_time()
             start_wall = time.time()
@@ -252,6 +253,7 @@ class Experiment(object):
             self.result["@runtime"] = runtime
             self.result["@runtime_process"] = runtime_process
             self.result["@runtime_wall"] = runtime_wall
+            self.after_run()
             if auto_save and self.storage:
                 self.save()
             return self
@@ -261,8 +263,14 @@ class Experiment(object):
                 self.save()
             raise
 
+    def before_run(self):
+        pass
+
     def run_internal(self):
         raise NotImplementedError()
+
+    def after_run(self):
+        pass
 
     def save(self, storage=None):
         if storage:
