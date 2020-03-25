@@ -35,7 +35,7 @@ def class_name(cls):
 
 class SqliteStorage(Storage):
     def __init__(self):
-        database.connect()
+        database.connect(reuse_if_open=True)
         database.create_tables([ExperimentModel, Run], safe=True)
         database.close()
 
