@@ -18,7 +18,7 @@ class SimpleRunner(StoredRunner):
         platform = platform_library.node()
         name = self.trajectory.name
         experiments = [e for s, e in zip(self.trajectory.settings, self.trajectory.experiments)
-                       if self.should_run(s, e)]
+                       if self.get_existing(s, e) is None]
         if self.observer:
             experiment_count = len(self.trajectory.experiments)
             self.observer.run_started(platform, name, self.run_count, run_date, experiment_count)
