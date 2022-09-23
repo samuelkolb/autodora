@@ -8,7 +8,10 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
 if platform.system() == "Darwin":
-    mpl.use('TkAgg')
+    try:
+        mpl.use("TkAgg")
+    except ModuleNotFoundError:
+        pass
 
 
 class ScatterData:
@@ -37,18 +40,28 @@ class ScatterData:
 
     def gen_colors(self):
         if len(self.data) <= len(self.colors):
-            return self.colors[:len(self.data)]
+            return self.colors[: len(self.data)]
         iterator = iter(cm.get_cmap("rainbow")(numpy.linspace(0, 1, len(self.data))))
         return [next(iterator) for _ in range(len(self.data))]
 
     def gen_markers(self):
         if len(self.data) <= len(self.markers):
-            return self.markers[:len(self.data)]
+            return self.markers[: len(self.data)]
         iterator = itertools.cycle(mark.MarkerStyle.filled_markers)
         return [next(iterator) for _ in range(len(self.data))]
 
-    def render(self, ax, lines=True, log_x=True, log_y=True, label_x=None, label_y=None, legend_pos=None,
-               x_ticks=None, y_ticks=None):
+    def render(
+        self,
+        ax,
+        lines=True,
+        log_x=True,
+        log_y=True,
+        label_x=None,
+        label_y=None,
+        legend_pos=None,
+        x_ticks=None,
+        y_ticks=None,
+    ):
 
         plots = []
         colors = self.gen_colors()
@@ -99,7 +112,12 @@ class ScatterData:
                     self.y_lim(limits)
                 cache = None
 
-        min_x, max_x, min_y, max_y = numpy.infty, -numpy.infty, numpy.infty, -numpy.infty
+        min_x, max_x, min_y, max_y = (
+            numpy.infty,
+            -numpy.infty,
+            numpy.infty,
+            -numpy.infty,
+        )
         for i in range(self.size):
             name, x_data, y_data, error = self.data[i]
             try:
@@ -111,13 +129,24 @@ class ScatterData:
                 pass
 
             if plot_format == "scatter":
-                plots.append(ax.scatter(x_data, y_data, color=colors[i], marker=markers[i], s=40))
+                plots.append(
+                    ax.scatter(x_data, y_data, color=colors[i], marker=markers[i], s=40)
+                )
                 if lines:
                     ax.plot(x_data, y_data, color=colors[i])
                 if show_error == 1 and error is not None:
-                    ax.fill_between(x_data, y_data - error, y_data + error, color=colors[i], alpha=0.35, linewidth=0)
+                    ax.fill_between(
+                        x_data,
+                        y_data - error,
+                        y_data + error,
+                        color=colors[i],
+                        alpha=0.35,
+                        linewidth=0,
+                    )
                 elif show_error == 2 and error is not None:
-                    ax.errorbar(x_data, y_data, error, linestyle='None', color=colors[i])
+                    ax.errorbar(
+                        x_data, y_data, error, linestyle="None", color=colors[i]
+                    )
             elif plot_format == "bar":
                 plots.append(ax.bar(x_data, y_data, color=colors[i]))
             else:
@@ -128,7 +157,9 @@ class ScatterData:
                     ax.plot(x_data, 1 / x_data, linestyle="--")
 
         if plot_diagonal:
-            ax.plot(numpy.array([min_x, max_x]), numpy.array([min_y, max_y]), linestyle="--")
+            ax.plot(
+                numpy.array([min_x, max_x]), numpy.array([min_y, max_y]), linestyle="--"
+            )
 
         ax.grid(True)
         legend_names = list(t[0] for t in self.data)
@@ -139,9 +170,9 @@ class ScatterData:
             ax.legend(plots, legend_names, loc=legend_pos)
 
         if log_x:
-            ax.set_xscale('log')
+            ax.set_xscale("log")
         if log_y:
-            ax.set_yscale('log')
+            ax.set_yscale("log")
 
         x_lim, y_lim = self.limits
         if x_lim is not None:
@@ -172,4 +203,6 @@ class ScatterData:
         if filename is None:
             plt.show(block=True)
         else:
-            plt.savefig(filename, format="png", bbox_inches="tight", pad_inches=0.08, dpi=600)
+            plt.savefig(
+                filename, format="png", bbox_inches="tight", pad_inches=0.08, dpi=600
+            )

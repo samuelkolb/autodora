@@ -1,5 +1,6 @@
 import inspect
 import platform as platform_library
+import sys
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional, Dict
 
@@ -64,6 +65,44 @@ class PrintObserver(ProgressObserver):
         print("[{}] done: {} - {}".format(platform, name, run_count))
 
 
+class PrintCountObserver(ProgressObserver):
+    def __init__(self):
+        super().__init__(auto_load=False)
+        self.completed = self.failed = self.timed_out = 0
+        self.name = None
+        self.experiment_count = None
+
+    def run_started(self, platform, name, run_count, run_date, experiment_count):
+        self.experiment_count = experiment_count
+        self.name = name
+        self.print_message()
+
+    def experiment_started(self, index, experiment):
+        pass
+
+    def experiment_finished(self, index, experiment):
+        self.completed += 1
+        self.print_message()
+
+    def experiment_interrupted(self, index, experiment):
+        self.timed_out += 1
+        self.print_message()
+
+    def experiment_failed(self, index, experiment):
+        self.failed += 1
+        self.print_message()
+
+    def run_finished(self, platform, name, run_count, run_date):
+        pass
+
+    def print_message(self):
+        print(
+            f"[{self.name}] "
+            f"{self.completed + self.failed + self.timed_out} / {self.experiment_count} "
+            f"(C {self.completed} | E {self.failed} | T {self.timed_out})"
+        )
+
+
 class Runner:
     def __init__(self, trajectory, observer):
         self.trajectory = trajectory  # type: Trajectory
@@ -93,7 +132,9 @@ class StoredRunner(Runner):
         if self.storage is None:
             return False
         if self._previous_experiments is None:
-            self._previous_experiments = self.storage.get_experiments(experiment.__class__, self.trajectory.name)
+            self._previous_experiments = self.storage.get_experiments(
+                experiment.__class__, self.trajectory.name
+            )
         return Runner.setting_exists(setting, self._previous_experiments)
 
     def get_existing(self, setting, experiment):
@@ -104,11 +145,30 @@ class StoredRunner(Runner):
 
 
 class CommandLineRunner(StoredRunner):
-    def __init__(self, trajectory, storage, processes=None, timeout=None, observer=None, via_cli=True, repeat=False):
-        super().__init__(trajectory, storage, None if observer is None else ParallelToProcess(observer, self), repeat)
+    def __init__(
+        self,
+        trajectory,
+        storage,
+        processes=None,
+        timeout=None,
+        observer=None,
+        via_cli=True,
+        repeat=False,
+        cmd=None,
+    ):
+        super().__init__(
+            trajectory,
+            storage,
+            None if observer is None else ParallelToProcess(observer, self),
+            repeat,
+        )
         self.timeout = timeout
         self.processes = processes
         self.via_cli = via_cli
+        self.cmd = cmd
+
+    def set_observer(self, observer):
+        self.observer = ParallelToProcess(observer, self)
 
     def run(self):
         commands = []
@@ -126,7 +186,9 @@ class CommandLineRunner(StoredRunner):
 
         if self.observer:
             experiment_count = len(experiments)
-            self.observer.observer.run_started(platform, name, self.run_count, run_date, experiment_count)
+            self.observer.observer.run_started(
+                platform, name, self.run_count, run_date, experiment_count
+            )
 
         for experiment in experiments:
             if self.timeout:
@@ -139,27 +201,51 @@ class CommandLineRunner(StoredRunner):
             cls = experiment.__class__
             filename = inspect.getfile(cls)
             if self.via_cli:
-                commands.append("python {} {} run {}".format(filename, storage_name, experiment.identifier))
+                if self.cmd is None:
+                    commands.append(
+                        "python {} -s {} run {}".format(
+                            filename, storage_name, experiment.identifier
+                        )
+                    )
+                else:
+                    commands.append(
+                        f"{self.cmd} -s {storage_name} run {experiment.identifier}"
+                    )
             else:
-                commands.append((CommandLineRunner.run_single, (self.storage, cls, experiment.identifier)))
+                commands.append(
+                    (
+                        CommandLineRunner.run_single,
+                        (self.storage, cls, experiment.identifier),
+                    )
+                )
 
         meta = [e.identifier for e in experiments] if self.observer else None
-        parallel.run_commands(commands, timeout=self.timeout, observer=self.observer, meta=meta,
-                              processes=self.processes)
+        parallel.run_commands(
+            commands,
+            timeout=self.timeout,
+            observer=self.observer,
+            meta=meta,
+            processes=self.processes,
+        )
         if self.observer:
-            self.observer.observer.run_finished(platform, name, self.run_count, run_date)
-        return [self.storage.get_experiment(e.__class__, e.identifier) for e in self.trajectory.experiments]
+            self.observer.observer.run_finished(
+                platform, name, self.run_count, run_date
+            )
+        return [
+            self.storage.get_experiment(e.__class__, e.identifier)
+            for e in self.trajectory.experiments
+        ]
 
     @staticmethod
     def run_single(storage, cls, identifier):
         experiment = storage.get_experiment(cls, identifier)
-        experiment.run(True)
+        experiment.run_wrapped(True)
         return experiment.identifier
 
 
-def import_runner(runner_string, trajectory, storage, timeout=None):
+def import_runner(runner_string, trajectory, storage, timeout=None, cmd=None):
     if runner_string == "cli":
-        return CommandLineRunner(trajectory, storage, timeout=timeout)
+        return CommandLineRunner(trajectory, storage, timeout=timeout, cmd=cmd)
     elif runner_string == "multi":
         return CommandLineRunner(trajectory, storage, timeout=timeout, via_cli=False)
     else:

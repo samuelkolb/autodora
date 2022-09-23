@@ -1,6 +1,8 @@
 import importlib
 from typing import List, TYPE_CHECKING, Optional, Type
 
+from .settings import DEFAULT_STORAGE
+
 if TYPE_CHECKING:
     from .experiment import Experiment
 
@@ -29,21 +31,28 @@ class Storage(object):
         raise NotImplementedError()
 
 
-
 def export_storage(storage):
     from .sql_storage import SqliteStorage
+
     if isinstance(storage, SqliteStorage):
         return "sqlite"
     else:
         raise ValueError("Could not export storage {storage}".format(storage=storage))
 
 
-def import_storage(storage_string):
+def import_storage(storage_string=None):
+    if storage_string is None:
+        storage_string = DEFAULT_STORAGE
     if storage_string == "sqlite":
         from .sql_storage import SqliteStorage
+
         return SqliteStorage()
     else:
-        raise ValueError("Could not import storage {storage_string}".format(storage_string=storage_string))
+        raise ValueError(
+            "Could not import storage {storage_string}".format(
+                storage_string=storage_string
+            )
+        )
 
 
 def full_class_name(cls):
@@ -52,7 +61,7 @@ def full_class_name(cls):
     if module is None or module == str.__class__.__module__:
         return cls.__name__  # Avoid reporting __builtin__
     else:
-        return module + '.' + cls.__name__
+        return module + "." + cls.__name__
 
 
 def str_to_class(n):

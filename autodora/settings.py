@@ -1,0 +1,2 @@
+DEFAULT_GROUP_NAME = "default"
+DEFAULT_STORAGE = "sqlite"

@@ -1,8 +1,10 @@
 import collections
+import math
 from argparse import ArgumentParser
 from typing import List, Optional, Union, Any
 
 import numpy as np
+from matplotlib import pyplot as plt
 
 from .experiment import Experiment
 
@@ -12,7 +14,10 @@ def table(data, column_header=None, row_header=None):
 
     if isinstance(data, np.ndarray):
         # noinspection PyTypeChecker
-        data = [[data[row, col] for col in range(data.shape[1])] for row in range(data.shape[0])]
+        data = [
+            [data[row, col] for col in range(data.shape[1])]
+            for row in range(data.shape[0])
+        ]
 
     if row_header is not None:
         if not isinstance(row_header[0], (list, tuple)):
@@ -28,15 +33,22 @@ def table(data, column_header=None, row_header=None):
         column_header = ["{}".format(e) for e in column_header]
     data = [["{}".format(e) for e in row] for row in data]
 
-    max_lengths = [max(len(data[r][c]) for r in range(len(data))) for c in range(len(data[0]))]
+    max_lengths = [
+        max(len(data[r][c]) for r in range(len(data))) for c in range(len(data[0]))
+    ]
     if column_header is not None:
-        max_lengths = [max(max_lengths[c], len(column_header[c])) for c in range(len(data[0]))]
+        max_lengths = [
+            max(max_lengths[c], len(column_header[c])) for c in range(len(data[0]))
+        ]
 
     if column_header is not None:
         data.insert(0, column_header)
         data.insert(1, ["=" * max_lengths[i] for i, c in enumerate(column_header)])
 
-    data = [[row[c] + " " * (max_lengths[c] - len(row[c])) for c in range(len(data[0]))] for row in data]
+    data = [
+        [row[c] + " " * (max_lengths[c] - len(row[c])) for c in range(len(data[0]))]
+        for row in data
+    ]
 
     return "\n".join("  ".join(e for e in row) for row in data)
 
@@ -59,15 +71,29 @@ def mean(iterable):
 
 
 def mean_scores(scores):
-    return [mean([scores[r][c] for r in range(len(scores))]) for c in range(len(scores[0]))]
+    return [
+        mean([scores[r][c] for r in range(len(scores))]) for c in range(len(scores[0]))
+    ]
 
 
 def std_scores(scores):
-    return [np.std(np.array([scores[r][c] for r in range(len(scores))])) for c in range(len(scores[0]))]
+    return [
+        np.std(np.array([scores[r][c] for r in range(len(scores))]))
+        for c in range(len(scores[0]))
+    ]
 
 
 def parse_args(args):
-    return args.targets, args.group_by, args.aggregator, args.sort, args.exclude, args.plot, args.options, args.write_to
+    return (
+        args.targets,
+        args.group_by,
+        args.aggregator,
+        args.sort,
+        args.exclude,
+        args.plot,
+        args.options,
+        args.write_to,
+    )
 
 
 def show_from_args(experiments, args):
@@ -93,7 +119,10 @@ def get_property(index: int, experiment: Experiment, property_name: str):
             return 1 if is_excluded_from_string(remaining, experiment) else 0
         if operator.startswith("batch"):
             bin_size = float(operator[5:])
-            return int(get_property(index, experiment, remaining) / bin_size) * bin_size - bin_size / 2
+            return (
+                int(get_property(index, experiment, remaining) / bin_size) * bin_size
+                - bin_size / 2
+            )
         else:
             try:
                 index = int(operator)
@@ -122,14 +151,32 @@ def get_property(index: int, experiment: Experiment, property_name: str):
         parts = property_name.split(".")
         return getattr(get_property(index, experiment, ".".join(parts[:-1])), parts[-1])
 
-    properties = ["id", "*"] \
-        + sorted(map(lambda s: "config.{s}".format(s=s), experiment.config.parameters.keys())) \
-        + sorted(map(lambda s: "parameter.{s}".format(s=s), experiment.parameters.parameters.keys())) \
-        + sorted(map(lambda s: "result.{s}".format(s=s), experiment.result.parameters.keys())) \
-        + sorted(map(lambda s: "derived.{s}".format(s=s), experiment.derived_callbacks.keys()))
+    properties = (
+        ["id", "*"]
+        + sorted(
+            map(lambda s: "config.{s}".format(s=s), experiment.config.parameters.keys())
+        )
+        + sorted(
+            map(
+                lambda s: "parameter.{s}".format(s=s),
+                experiment.parameters.parameters.keys(),
+            )
+        )
+        + sorted(
+            map(lambda s: "result.{s}".format(s=s), experiment.result.parameters.keys())
+        )
+        + sorted(
+            map(
+                lambda s: "derived.{s}".format(s=s), experiment.derived_callbacks.keys()
+            )
+        )
+    )
 
-    raise ValueError("Could not find property: {}, choose a valid property ({}) or a filter"
-                     .format(property_name, properties))
+    raise ValueError(
+        "Could not find property: {}, choose a valid property ({}) or a filter".format(
+            property_name, properties
+        )
+    )
 
 
 def is_excluded_from_string(filter_string, experiment):
@@ -189,16 +236,130 @@ def is_excluded(experiment: Experiment, exclude: Optional[List]):
     return False
 
 
+def partition(dicts, *attributes):
+    result = collections.defaultdict(list)
+    for d in dicts:
+        key = tuple(d[arg] for arg in attributes)
+        result[key].append(d)
+    return result
+
+
+def group_data(dicts, partitions: list[str], group_by: str, results: list[str]):
+    groups = partition(dicts, *partitions)
+    processed = {}
+    for p_key, group in groups.items():
+        arrays = {group_by: []}
+        for result in results:
+            arrays[result] = []
+        by_key = partition(group, group_by)
+        for key in sorted(by_key.keys()):
+            arrays[group_by].append(key[0])
+            entries = by_key[key]
+            for result in results:
+                arrays[result].append([e[result] for e in entries])
+        processed[p_key] = arrays
+    return processed
+
+
+def groups_to_plot_lines(grouped_data, x_var, aggregator=None):
+    if aggregator is None:
+        aggregator = mean
+
+    x = {}
+    aggregated = {}
+    error = {}
+
+    for p_key, data in grouped_data.items():
+        x[p_key] = {}
+        aggregated[p_key] = {}
+        error[p_key] = {}
+        for key in data:
+            if key != x_var:
+                aggregated[p_key][key] = np.array([aggregator(e) for e in data[key]])
+                error[p_key][key] = np.array(
+                    [
+                        np.std([item for item in e if item is not None])
+                        / math.sqrt(len([item for item in e if item is not None]))
+                        for e in data[key]
+                    ]
+                )
+            else:
+                x[p_key] = np.array(data[key])
+
+    return x, aggregated, error
+
+
+def plot_lines(dicts, partitions: list[str], group_by: str, results: list[str]):
+    grouped = group_data(dicts, partitions, group_by, results)
+    return groups_to_plot_lines(grouped, group_by)
+
+
+def plot(
+    dicts,
+    partitions: list[str],
+    group_by: str,
+    results: list[str],
+    errors=True,
+    ax=None,
+    make_legend=True,
+):
+    x, y, e = plot_lines(dicts, partitions, group_by, results)
+    ax = ax or plt.gca()
+
+    if errors:
+        for key in y:
+            for res in results:
+                ax.fill_between(
+                    x[key],
+                    y[key][res] - e[key][res],
+                    y[key][res] + e[key][res],
+                    alpha=0.35,
+                    linewidth=0,
+                )
+
+    for key in y:
+        for res in results:
+            label = ", ".join(f"{k}={v}" for k, v in zip(partitions, key))
+            if len(results) > 1 or len(partitions) == 0:
+                if len(partitions) > 0:
+                    label += ", "
+                label += res
+            ax.plot(
+                x[key],
+                y[key][res],
+                label=label,
+            )
+
+    if make_legend:
+        ax.legend()
+
+
+# def gen_colors(n):
+#     iterator = iter(cm.get_cmap("rainbow")(numpy.linspace(0, 1, n)))
+#     return [next(iterator) for _ in range(n)]
+
+
+# def plot_results(dicts, partitions: list[str], group_by: str, results: list[str]):
+#     processed = process(dicts, partitions, group_by, results)
+#     for key, data in processed.items():
+#         for result in results:
+#             key_label = ", ".join(f"{k}={v}" for k, v in zip(partitions, key))
+#             plt.plot(data[group_by], data[result], label=f"{result} - {key_label}")
+#
+#     plt.legend()
+#     plt.show()
+
+
 def show(
-        experiments: List[Experiment],
-        targets=None,
-        group_by=None,
-        aggregator=None,
-        sort: Optional[str] = None,
-        exclude: Optional[List] = None,
-        plot=None,
-        options=None,
-        export_filename=None,
+    experiments: List[Experiment],
+    targets=None,
+    group_by=None,
+    aggregator=None,
+    sort: Optional[str] = None,
+    exclude: Optional[List] = None,
+    plot=None,
+    options=None,
+    export_filename=None,
 ):
     # Setup aggregator
     if aggregator == "count":
@@ -210,14 +371,18 @@ def show(
 
     experiments = [e for e in experiments if not is_excluded(e, exclude)]
 
-    if plot and len(targets) != 1:
-        raise ValueError("Plotting requires exactly one target, {} given".format(len(targets)))
+    # if plot and len(targets) != 1:
+    #     raise ValueError(
+    #         "Plotting requires exactly one target, {} given".format(len(targets))
+    #     )
 
     group_by = group_by or (["id"] if plot else ["*"])
 
     if plot:
         targets = group_by[:1] + targets
         group_by = group_by[1:]
+
+    print(targets, group_by)
 
     if sort is not None:
         sort = sort.strip()
@@ -228,9 +393,12 @@ def show(
             reverse = False
 
         experiments = [
-            t[1] for t in sorted(zip(range(len(experiments)), experiments),
-                                 key=lambda t: get_property(t[0], t[1], sort),
-                                 reverse=reverse)
+            t[1]
+            for t in sorted(
+                zip(range(len(experiments)), experiments),
+                key=lambda t: get_property(t[0], t[1], sort),
+                reverse=reverse,
+            )
         ]
 
     groups = {}
@@ -241,10 +409,15 @@ def show(
         groups[key].append(tuple([get_property(i, experiment, t) for t in targets]))
 
     keys = sorted(groups.keys())
-    key_names = [["{}:{}".format(g, v) for g, v in zip(group_by, values)] for values in keys]
+    key_names = [
+        ["{}:{}".format(g, v) for g, v in zip(group_by, values)] for values in keys
+    ]
 
     if plot:
         from .plot import ScatterData
+
+        print(key_names, keys)
+
         scatter = ScatterData("", options)
         for n, k in zip(key_names, keys):
             name = ", ".join(map(str, n))
@@ -253,14 +426,31 @@ def show(
                 if r[0] not in sub_group:
                     sub_group[r[0]] = []
                 sub_group[r[0]].append(r[1])
+            print(n, k, sub_group)
             sub_keys = sorted(sub_group.keys())
-            scatter.add_data(name, np.array(sub_keys), np.array([aggregator(sub_group[sk]) for sk in sub_keys]),
-                             np.array([np.std(np.array(sub_group[sk])) for sk in sub_keys]))
+            scatter.add_data(
+                name,
+                np.array(sub_keys),
+                np.array([aggregator(sub_group[sk]) for sk in sub_keys]),
+                np.array(
+                    [
+                        np.std(np.array(sub_group[sk])) / math.sqrt(len(sub_group[sk]))
+                        for sk in sub_keys
+                    ]
+                ),
+            )
 
         label_x = targets[0].capitalize()
         label_y = targets[1].capitalize()
-        scatter.plot(export_filename,
-                     lines=True, log_x=False, log_y=False, label_y=label_y, label_x=label_x, legend_pos="upper center")
+        scatter.plot(
+            export_filename,
+            lines=True,
+            log_x=False,
+            log_y=False,
+            label_y=label_y,
+            label_x=label_x,
+            legend_pos="upper center",
+        )
 
     else:
         deviations = dict()

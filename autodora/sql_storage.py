@@ -7,7 +7,10 @@ from playhouse.fields import PickleField
 from .storage import Storage
 
 database = SqliteDatabase(
-    os.environ.get("DB", os.path.join(os.path.dirname(os.path.dirname(__file__)), "experiments.sqlite"))
+    os.environ.get(
+        "DB",
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), "experiments.sqlite"),
+    )
 )
 
 
@@ -49,11 +52,18 @@ class SqliteStorage(Storage):
             model.derived = experiment.derived
             model.save()
 
-        elif (not experiment.storage or experiment == self) and not experiment.identifier:
+        elif (
+            not experiment.storage or experiment == self
+        ) and not experiment.identifier:
             cls = class_name(experiment.__class__)
-            model = ExperimentModel.create(cls_name=cls, group=experiment.group, config=experiment.config.values,
-                                           parameters=experiment.parameters.values, result=experiment.result.values,
-                                           derived=experiment.derived)
+            model = ExperimentModel.create(
+                cls_name=cls,
+                group=experiment.group,
+                config=experiment.config.values,
+                parameters=experiment.parameters.values,
+                result=experiment.result.values,
+                derived=experiment.derived,
+            )
             experiment.storage = self
             experiment.identifier = model.id
         else:
@@ -79,22 +89,39 @@ class SqliteStorage(Storage):
         if class_name(cls) == model.cls_name:
             return self.transform(cls, model)
         else:
-            raise ValueError("Could not find experiment with id {} and class {} (was {})"
-                             .format(identifier, cls, model.cls_name))
+            raise ValueError(
+                "Could not find experiment with id {} and class {} (was {})".format(
+                    identifier, cls, model.cls_name
+                )
+            )
 
     def get_experiments(self, cls, group=None):
         cls_name = class_name(cls)
         if group:
-            return list(map(partial(self.transform, cls),
-                            ExperimentModel.select()
-                            .where(ExperimentModel.cls_name == cls_name, ExperimentModel.group == group)))
+            return list(
+                map(
+                    partial(self.transform, cls),
+                    ExperimentModel.select().where(
+                        ExperimentModel.cls_name == cls_name,
+                        ExperimentModel.group == group,
+                    ),
+                )
+            )
         else:
-            return list(map(partial(self.transform, cls),
-                            ExperimentModel.select().where(ExperimentModel.cls_name == cls_name)))
+            return list(
+                map(
+                    partial(self.transform, cls),
+                    ExperimentModel.select().where(
+                        ExperimentModel.cls_name == cls_name
+                    ),
+                )
+            )
 
     def remove(self, group, experiment_id=None, dry_run=False):
         if experiment_id:
-            query = ExperimentModel.delete().where(ExperimentModel.group == group, ExperimentModel.id == experiment_id)
+            query = ExperimentModel.delete().where(
+                ExperimentModel.group == group, ExperimentModel.id == experiment_id
+            )
         else:
             query = ExperimentModel.delete().where(ExperimentModel.group == group)
         if dry_run:
@@ -102,7 +129,7 @@ class SqliteStorage(Storage):
         else:
             query.execute()
 
-    @database.atomic('EXCLUSIVE')
+    @database.atomic("EXCLUSIVE")
     def get_new_run(self):
         counts = [m.number for m in Run.select()]
         max_run = max(counts) + 1 if len(counts) > 0 else 1

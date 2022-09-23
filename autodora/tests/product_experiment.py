@@ -5,7 +5,9 @@ from autodora.experiment import Experiment, Parameter, derived, Result
 
 
 def callback(x, y, count, power):
-    check_output("for i in `seq 1 {count}`; do echo $i; done".format(count=count), shell=True)
+    check_output(
+        "for i in `seq 1 {count}`; do echo $i; done".format(count=count), shell=True
+    )
     print("Done computing with BASH")
     print("No errors occurred", file=sys.stderr)
     return (x * y) ** power
@@ -29,7 +31,7 @@ class ProductExperiment(Experiment):
     def derived_x_square(self):
         return self.get("x") ** 2
 
-    def run_internal(self):
+    def run(self):
         x, y = self.get("x"), self.get("y")
         result = callback(x, y, self["count"], self["power"])
         self.result["product"] = result

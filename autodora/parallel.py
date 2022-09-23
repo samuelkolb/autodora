@@ -4,6 +4,7 @@ import multiprocessing
 import os
 import signal
 import subprocess
+import traceback
 from multiprocessing import Queue, Manager, Process
 from multiprocessing.pool import Pool
 from subprocess import TimeoutExpired
@@ -56,7 +57,11 @@ def observe(observer, queue, count=None):
         if update == Update.SENTINEL:
             return
         elif isinstance(update, Update):
-            if update.status == Update.DONE or update.status == Update.TIMEOUT or update.status == Update.FAILED:
+            if (
+                update.status == Update.DONE
+                or update.status == Update.TIMEOUT
+                or update.status == Update.FAILED
+            ):
                 if to_see:
                     to_see.remove(update.index)
             try:
@@ -76,80 +81,100 @@ def run_function(f, *args, timeout=None, **kwargs):
 
 
 def worker(args):
-    i, meta, command, timeout, queue, m_queue = args  # type: (int, Any, Any, int, Queue, Queue)
+    (
+        i,
+        meta,
+        command,
+        timeout,
+        queue,
+        m_queue,
+    ) = args  # type: (int, Any, Any, int, Queue, Queue)
     # TODO Capture output?
 
-    if isinstance(command, str):
-        is_string = True
-    else:
-        try:
-            is_string = len(command) > 0 and not callable(command[0])
-        except TypeError:
-            raise ValueError("Command must be either string, args or function-args pair")
-
-    if is_string:
-        with subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                              start_new_session=True) as process:
+    try:
+        if isinstance(command, str):
+            is_string = True
+        else:
             try:
-                if m_queue:
-                    m_queue.put(Update(Update.STARTED, i, command, process.pid))
-                if queue:
-                    queue.put(Update(Update.STARTED, i, command, meta))
-                out, err = process.communicate(timeout=timeout)
-                if queue:
-                    if process.returncode == 0:
-                        queue.put(Update(Update.DONE, i, command, meta))
-                    else:
-                        queue.put(Update(Update.FAILED, i, command, meta))
-                return out.decode(), err.decode()
-            except TimeoutExpired:
+                is_string = len(command) > 0 and not callable(command[0])
+            except TypeError:
+                raise ValueError(
+                    "Command must be either string, args or function-args pair"
+                )
+
+        if is_string:
+            with subprocess.Popen(
+                command,
+                shell=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                start_new_session=True,
+            ) as process:
                 try:
-                    os.killpg(process.pid, signal.SIGTERM)  # send signal to the process group
-                except OSError as e:
-                    if e.errno != errno.ESRCH:
-                        if e.errno == errno.EPERM:
-                            os.waitpid(-process.pid, 0)
-                    else:
-                        raise e
-                finally:
+                    if m_queue:
+                        m_queue.put(Update(Update.STARTED, i, command, process.pid))
                     if queue:
-                        queue.put(Update(Update.TIMEOUT, i, command, meta))
+                        queue.put(Update(Update.STARTED, i, command, meta))
+                    out, err = process.communicate(timeout=timeout)
+                    if queue:
+                        if process.returncode == 0:
+                            queue.put(Update(Update.DONE, i, command, meta))
+                        else:
+                            queue.put(Update(Update.FAILED, i, command, meta))
+                    return out.decode(), err.decode()
+                except TimeoutExpired:
+                    try:
+                        os.killpg(
+                            process.pid, signal.SIGTERM
+                        )  # send signal to the process group
+                    except OSError as e:
+                        if e.errno != errno.ESRCH:
+                            if e.errno == errno.EPERM:
+                                os.waitpid(-process.pid, 0)
+                        else:
+                            raise e
+                    finally:
+                        if queue:
+                            queue.put(Update(Update.TIMEOUT, i, command, meta))
 
-                process.communicate()
-            finally:
-                if m_queue:
-                    m_queue.put(Update(Update.DONE, i, command, process.pid))
-
-    else:
-        assert isinstance(command, (tuple, list))
-        if len(command) < 2:
-            command = command + ([],)
-        if len(command) < 3:
-            command = command + (dict(),)
-
-        f, args, kwargs = command
-
-        p = multiprocessing.Process(target=f, args=args, kwargs=kwargs)
-        if queue:
-            queue.put(Update(Update.STARTED, i, command, meta))
-
-        p.start()
-        p.join(timeout)
-
-        if p.is_alive():
-            p.terminate()
-            p.join()
-            if queue:
-                queue.put(Update(Update.TIMEOUT, i, command, meta))
+                    process.communicate()
+                finally:
+                    if m_queue:
+                        m_queue.put(Update(Update.DONE, i, command, process.pid))
 
         else:
+            assert isinstance(command, (tuple, list))
+            if len(command) < 2:
+                command = command + ([],)
+            if len(command) < 3:
+                command = command + (dict(),)
+
+            f, args, kwargs = command
+
+            p = multiprocessing.Process(target=f, args=args, kwargs=kwargs)
             if queue:
-                queue.put(Update(Update.DONE, i, command, meta))
+                queue.put(Update(Update.STARTED, i, command, meta))
+
+            p.start()
+            p.join(timeout)
+
+            if p.is_alive():
+                p.terminate()
+                p.join()
+                if queue:
+                    queue.put(Update(Update.TIMEOUT, i, command, meta))
+
+            else:
+                if queue:
+                    queue.put(Update(Update.DONE, i, command, meta))
+    except Exception:
+        with open("log.txt", "w") as f:
+            print(traceback.format_exc(), file=f)
 
 
 def status(s):
     """Prints things in bold."""
-    print('\033[1m{0}\033[0m'.format(s))
+    print("\033[1m{0}\033[0m".format(s))
 
 
 def run_commands(commands, processes=None, timeout=None, meta=None, observer=None):
@@ -161,9 +186,14 @@ def run_commands(commands, processes=None, timeout=None, meta=None, observer=Non
         queue = manager.Queue()
 
     if meta:
-        commands = [(i, meta, command, timeout, queue, m) for i, (command, meta) in enumerate(zip(commands, meta))]
+        commands = [
+            (i, meta, command, timeout, queue, m)
+            for i, (command, meta) in enumerate(zip(commands, meta))
+        ]
     else:
-        commands = [(i, meta, command, timeout, queue, m) for i, command in enumerate(commands)]
+        commands = [
+            (i, meta, command, timeout, queue, m) for i, command in enumerate(commands)
+        ]
 
     with temp_file() as f:
         filename = str(f)
@@ -226,4 +256,3 @@ def run_commands(commands, processes=None, timeout=None, meta=None, observer=Non
     status("### DONE ##")
     m.put(Update.SENTINEL)
     m_process.join()
-

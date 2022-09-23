@@ -3,6 +3,7 @@ from typing import Dict, Any, List, TYPE_CHECKING
 if TYPE_CHECKING:
     from .experiment import Experiment
 
+
 def flatten(dict_settings):
     common_length = None
     for val in dict_settings.values():
@@ -41,7 +42,9 @@ class Trajectory(object):
             if common_length is None:
                 settings = [{}]
             else:
-                settings = [{k: v[i] for k, v in settings.items()} for i in range(common_length)]
+                settings = [
+                    {k: v[i] for k, v in settings.items()} for i in range(common_length)
+                ]
 
         for setting in settings:
             self.settings.append(setting)
