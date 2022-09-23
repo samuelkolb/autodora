@@ -416,8 +416,6 @@ def show(
     if plot:
         from .plot import ScatterData
 
-        print(key_names, keys)
-
         scatter = ScatterData("", options)
         for n, k in zip(key_names, keys):
             name = ", ".join(map(str, n))
